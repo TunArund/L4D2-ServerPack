@@ -10,34 +10,27 @@
 
 ```bash
 git clone https://github.com/TunArund/L4D2-ServerPack.git l4d2-server && cd l4d2-server
-cp .env.example .env            # 填入 MySQL 密码 + SIDECAR_TOKEN
-./l4d2.sh install               # steamcmd 下载游戏文件 (~9GB)
+cp .env.example .env            # 填入密码 + SIDECAR_TOKEN
+./l4d2.sh install               # steamcmd 下载游戏 (~9GB)
+./docker.sh install             # 自动安装 Docker (已装则跳过)
 ```
 
-**Docker Hub 加速**（国内用户，解决 mysql/glances 拉取慢）：
+**本地构建 & 启动**（`./docker.sh install` 已自动配置 Docker Hub 加速）：
 ```bash
-sudo tee /etc/docker/daemon.json <<'EOF'
-{ "registry-mirrors": ["https://docker.1ms.run"] }
-EOF
-sudo systemctl restart docker
+./docker.sh build
+./docker.sh up
 ```
 
-**本地构建**（推荐国内用户，REGISTRY 留空）：
-```bash
-docker compose build            # 首次 ~500s，后续缓存秒级
-docker compose up -d
-```
-
-**拉取预构建镜像**（适合国外 VPS，ghcr.io 速度快）：
+**拉取预构建镜像**（适合国外 VPS）：
 ```bash
 # .env 中 REGISTRY=ghcr.io/tunarund/
-docker compose pull
-docker compose up -d
+./docker.sh pull
+./docker.sh up
 ```
 
 **推送镜像**（`.env` 中填入 `GITHUB_USER` / `GITHUB_TOKEN`）：
 ```bash
-./docker.sh latest
+./docker.sh push latest
 ```
 > Token：[GitHub Settings → Tokens (classic)](https://github.com/settings/tokens) → `write:packages`。首次推送后在 Package Settings 中设为 Public。
 
@@ -163,7 +156,7 @@ l4d2:             # 战役服               l4d2-versus:      # 对抗服
 l4d2-server/
 ├── docker-compose.yml
 ├── .env.example
-├── docker.sh                   # 构建 & 推送到 ghcr.io
+├── docker.sh                   # Docker 管理 (install/build/up/down/push/logs…)
 ├── l4d2.sh                     # steamcmd 下载/更新游戏
 ├── healthcheck.sh
 │
@@ -183,9 +176,13 @@ l4d2-server/
 
 ---
 
+## 致谢
+https://github.com/KevonLin/l4d2-docker-zonemod
+给了steamcmd便捷下载求生之路2服务器文件的指令
 ## 已知问题
 
 | 问题 | 说明 |
 |------|------|
 | UID/GID 不匹配 | `UID`/`GID` 需与 `l4d2/src/` owner 一致，否则 SourceMod Permission denied |
 | steamcmd 下载慢 | 首次 ~9.3GB，可在网络好的机器下载后 scp 到服务器 |
+| 挂载目录删不掉 | 容器内写入的文件（如 MySQL 数据）宿主普通用户无权删除，执行 `./docker.sh fix-perms` 修复 |

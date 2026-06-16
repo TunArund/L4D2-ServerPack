@@ -7,6 +7,8 @@ services:
     build:
       context: ./base-php
       dockerfile: Dockerfile.fpm
+      args:
+        APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
     image: ${REGISTRY}l4d2-base-php-fpm:latest
     profiles:
       - build
@@ -15,6 +17,8 @@ services:
     build:
       context: ./base-php
       dockerfile: Dockerfile.cli
+      args:
+        APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
     image: ${REGISTRY}l4d2-base-php-cli:latest
     profiles:
       - build
@@ -100,6 +104,7 @@ services:
     build:
       context: ./downloader
       args:
+        APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         REGISTRY: ${REGISTRY}
@@ -133,6 +138,7 @@ services:
     build:
       context: ./sidecar
       args:
+        APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
         REGISTRY: ${REGISTRY}
     image: ${REGISTRY}l4d2-sidecar:latest
     container_name: l4d2-sidecar

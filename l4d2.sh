@@ -66,7 +66,7 @@ download_game() {
         +@sSteamCmdForcePlatformType windows \
         +app_update "$APP_ID" \
         +@sSteamCmdForcePlatformType linux \
-        +app_update ${GAME_ID} validate \
+        +app_update "$APP_ID" validate \
         +quit
 
 }

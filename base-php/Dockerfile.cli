@@ -4,10 +4,19 @@
 # ============================================================
 FROM php:8.2-cli-alpine
 
+ARG APK_MIRROR="mirrors.aliyun.com"
+RUN if [ -n "$APK_MIRROR" ]; then \
+        sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories; \
+    fi
+
 RUN apk add --no-cache --virtual .build-deps \
         libpng-dev \
         libjpeg-turbo-dev \
         freetype-dev \
+    && apk add --no-cache \
+        libpng \
+        libjpeg-turbo \
+        freetype \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd mysqli pdo pdo_mysql pcntl \
     && apk del .build-deps
