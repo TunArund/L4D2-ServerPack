@@ -1,6 +1,11 @@
 ARG REGISTRY
 FROM ${REGISTRY}l4d2-base-php-cli:latest
 
+ARG APK_MIRROR="mirrors.aliyun.com"
+RUN if [ -n "$APK_MIRROR" ]; then \
+        sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories; \
+    fi
+
 # docker-cli — 与宿主机 Docker socket 通信
 RUN apk add --no-cache docker-cli
 
