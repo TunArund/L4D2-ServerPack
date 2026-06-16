@@ -80,10 +80,10 @@ graph TB
 | 容器 | 基础镜像 | 大小 | 作用 | 端口 |
 |------|----------|------|------|------|
 | **nginx** | `nginx:alpine` | ~62MB | 反向代理 + 静态文件 | 80, 443 |
-| **php** | `php:8.2-fpm-alpine` | ~100MB | PHP 应用后端 | 9000 |
+| **php** | `php:8.3-fpm-alpine` | ~100MB | PHP 应用后端 | 9000 |
 | **mysql** | `mysql:8.0` | ~799MB | 数据库 | 3306 |
-| **downloader** | `php:8.2-cli-alpine` | ~100MB | 地图下载守护进程 | — |
-| **sidecar** | `php:8.2-cli-alpine` | ~150MB | 容器管理（挂载 docker.sock） | 8080 |
+| **downloader** | `php:8.3-cli-alpine` | ~100MB | 地图下载守护进程 | — |
+| **sidecar** | `php:8.3-cli-alpine` | ~150MB | 容器管理（挂载 docker.sock） | 8080 |
 | **glances** | `nicolargo/glances` | ~124MB | 系统监控 REST API（pid:host） | 61208 |
 | **l4d2** | `ubuntu:22.04` | ~335MB | 游戏服务器 | 27015/udp+tcp |
 
