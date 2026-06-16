@@ -1,0 +1,205 @@
+services:
+  # ============================================================
+  # MySQL 数据库
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: l4d2-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/initdb:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Nginx 反向代理（统一入口）
+  # ============================================================
+  nginx:
+    build:
+      context: ./nginx
+    image: ${REGISTRY}l4d2-nginx:latest
+    container_name: l4d2-nginx
+    restart: unless-stopped
+    volumes:
+      - ./web/src:/var/www/html:ro                  # 静态资源
+      - ./nginx/data/nginx.conf:/etc/nginx/nginx.conf:ro  # 主配置
+      - ./nginx/data/conf.d:/etc/nginx/conf.d:ro    # 站点配置
+      - ./nginx/data/certs:/etc/nginx/certs:ro      # SSL 证书（可选）
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - php
+      - sidecar
+      - glances
+
+  # ============================================================
+  # PHP-FPM（应用后端）
+  # ============================================================
+  php:
+    build:
+      context: ./web
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+        REGISTRY: ${REGISTRY}
+    image: ${REGISTRY}l4d2-php:latest
+    container_name: l4d2-php
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      TENCENTCLOUD_SECRET_ID: ${TENCENTCLOUD_SECRET_ID}
+      TENCENTCLOUD_SECRET_KEY: ${TENCENTCLOUD_SECRET_KEY}
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:-}
+      MAP_DIR: ${MAP_DIR:-/var/www/addons/workshop/}
+      LOG_DIR: ${LOG_DIR:-/var/www/html/logs/}
+    volumes:
+      - ./web/src:/var/www/html
+      - ./web/data/logs:/var/www/html/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ============================================================
+  # 地图下载器
+  # ============================================================
+  downloader:
+    build:
+      context: ./downloader
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+        REGISTRY: ${REGISTRY}
+    image: ${REGISTRY}l4d2-downloader:latest
+    container_name: l4d2-downloader
+    restart: unless-stopped
+    environment:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+      DB_HOST: mysql
+      DB_DATABASE: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      WEB_HOST: nginx
+      MAP_DIR: ${MAP_DIR:-/var/www/addons/workshop/}
+      LOG_DIR: ${LOG_DIR:-/var/www/html/logs/}
+    volumes:
+      - ./web/src/api:/var/www/html/api:ro
+      - ./web/src/downloader_daemon.php:/var/www/html/downloader_daemon.php:ro
+      - ./l4d2/data/coop/addons:/var/www/addons
+      - ./web/data/logs:/var/www/html/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: php /var/www/html/downloader_daemon.php
+
+  # ============================================================
+  # 容器管理 sidecar API
+  # ============================================================
+  sidecar:
+    build:
+      context: ./sidecar
+      args:
+        REGISTRY: ${REGISTRY}
+    image: ${REGISTRY}l4d2-sidecar:latest
+    container_name: l4d2-sidecar
+    restart: unless-stopped
+    environment:
+      ALLOWED_CONTAINERS: ${ALLOWED_CONTAINERS:-l4d2-downloader,l4d2-coop,l4d2-versus,l4d2-php,l4d2-mysql,l4d2-glances,l4d2-nginx}
+      RESTARTABLE_CONTAINERS: ${RESTARTABLE_CONTAINERS:-l4d2-downloader,l4d2-coop,l4d2-versus}
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./sidecar/server.php:/server.php:ro
+
+  # ============================================================
+  # Glances 系统监控（API only，~50MB，极轻量）
+  # ============================================================
+  glances:
+    image: nicolargo/glances:latest
+    container_name: l4d2-glances
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /:/rootfs:ro
+    command: glances -w --disable-webui
+
+  # ============================================================
+  # L4D2 战役服
+  # ============================================================
+  l4d2:
+    build:
+      context: .
+      dockerfile: l4d2/Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: ${REGISTRY}l4d2-server-game:latest
+    container_name: l4d2-coop
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    environment:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+      L4D2_EXTRA_ARGS: ${L4D2_COOP_ARGS:-+ip 0.0.0.0 -port 27015 -timeout 2 +sv_steam_bypass 1 +sv_setmax 32 +map c2m1_highway +z_difficulty normal +exec server.cfg -tickrate 100 -high -heapsize 524288 -num_edicts 4096 -processheap}
+    volumes:
+      - ${GAME_DIR:-./l4d2/src}:/home/steam/l4d2              # 游戏本体（bind mount）
+      - ./l4d2/data/coop/addons:/home/steam/l4d2/left4dead2/addons
+      - ./l4d2/data/coop/cfg/server.cfg:/home/steam/l4d2/left4dead2/cfg/server.cfg
+      - ./l4d2/data/coop/cfg/sourcemod:/home/steam/l4d2/left4dead2/cfg/sourcemod
+      - ./l4d2/data/coop/cfg/custom:/home/steam/l4d2/left4dead2/cfg/custom
+      - ./l4d2/data/coop/cfg/AI_HardSI:/home/steam/l4d2/left4dead2/cfg/AI_HardSI
+      - ./l4d2/data/coop/cfg/cfgogl:/home/steam/l4d2/left4dead2/cfg/cfgogl
+      - ./l4d2/data/coop/host.txt:/home/steam/l4d2/left4dead2/host.txt
+      - ./l4d2/data/coop/motd.txt:/home/steam/l4d2/left4dead2/motd.txt
+      - ./l4d2/data/coop/ems:/home/steam/left4dead2/ems
+      - ./l4d2/data/coop/scripts/vscripts:/home/steam/left4dead2/scripts/vscripts
+    ports:
+      - "27015:27015/udp"
+      - "27015:27015/tcp"
+
+  # ============================================================
+  # L4D2 对抗服（复用战役服镜像，不同配置和挂载）
+  # ============================================================
+  l4d2-versus:
+    image: ${REGISTRY}l4d2-server-game:latest
+    container_name: l4d2-versus
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    environment:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+      L4D2_EXTRA_ARGS: ${L4D2_VERSUS_ARGS:-+ip 0.0.0.0 -port 27015 +sv_clockcorrection_msecs 25 -timeout 2 -tickrate 100 +mp_gamemode versus +map c1m1_hotel -maxplayers 32 +exec server.cfg}
+    volumes:
+      - ${GAME_DIR:-./l4d2/src}:/home/steam/l4d2              # 游戏本体（bind mount）
+      - ./l4d2/data/versus/addons:/home/steam/l4d2/left4dead2/addons
+      - ./l4d2/data/versus/cfg/server.cfg:/home/steam/l4d2/left4dead2/cfg/server.cfg
+      - ./l4d2/data/versus/cfg/sourcemod:/home/steam/l4d2/left4dead2/cfg/sourcemod
+      - ./l4d2/data/versus/cfg/cfgogl:/home/steam/l4d2/left4dead2/cfg/cfgogl
+      - ./l4d2/data/versus/cfg/stripper:/home/steam/l4d2/left4dead2/cfg/stripper
+      - ./l4d2/data/versus/cfg/generalfixes.cfg:/home/steam/l4d2/left4dead2/cfg/generalfixes.cfg
+      - ./l4d2/data/versus/cfg/cvar_tracking.cfg:/home/steam/l4d2/left4dead2/cfg/cvar_tracking.cfg
+      - ./l4d2/data/versus/cfg/sharedplugins.cfg:/home/steam/l4d2/left4dead2/cfg/sharedplugins.cfg
+      - ./l4d2/data/versus/scripts/vscripts:/home/steam/left4dead2/scripts/vscripts
+      - ./l4d2/data/versus/host.txt:/home/steam/l4d2/left4dead2/myhost.txt
+      - ./l4d2/data/versus/motd.txt:/home/steam/l4d2/left4dead2/mymotd.txt
+    ports:
+      - "27014:27015/udp"
+      - "27014:27015/tcp"

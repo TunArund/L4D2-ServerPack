@@ -1,0 +1,14 @@
+QQ群 求生小队 646920616
+m切换队伍
+!s进入旁观
+!match 用于更换对抗所使用的插件
+!hide 关闭准备面板
+!show 打开准备面板
+!slots+人数 更改服务器人数
+!forcestart 强制开始游戏
+!pause 暂停游戏
+!ready 准备就绪
+!spechud 旁观观战面板
+!voteboss 设置tank出现路程
+!setscores 设置双方分数
+!return 准备阶段挂边可返回出生点

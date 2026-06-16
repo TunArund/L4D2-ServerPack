@@ -1,0 +1,162 @@
+<!DOCTYPE HTML>
+<html lang="zh-hans">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="baidu-site-verification" content="codeva-UWcIxjEWi2" />
+    <meta name="msvalidate.01" content="35D6D46D20D353103F0A32194A81BFDA" />
+    <style>
+        body {
+            margin: 0px;
+            background-image: url("/static/img/blue-guy.jpg");
+            background-size: cover;
+        }
+    
+        .bg {
+            margin: 0px;
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+        }
+        h1,h2{
+            color: #ff8964;
+            text-shadow: -1px -1px 0 black, /* 左上 */
+                      1px -1px 0 #000, /* 右上 */
+                      -1px 1px 0 #000, /* 左下 */
+                      1px 1px 0 #000; /* 右下 */
+            font-family: "Microsoft YaHei";
+        }
+        .list{
+            font-family: "Microsoft YaHei";
+            font-size: 20px;
+            color: #ff8964;
+            text-shadow: -0.75px -0.75px 0 #000, /* 左上 */
+                      1px -1px 0 #000, /* 右上 */
+                      -1px 1px 0 #000, /* 左下 */
+                      1px 1px 0 #000; /* 右下 */
+        }
+        a {
+            color: #4CAF50; /* 绿色链接颜色 */
+            text-decoration: none; /* 移除下划线 */
+            font-weight: bold; /* 加粗文字 */
+        }
+
+        a:hover {
+            color: #FFD700; /* 悬停时为金色 */
+            text-decoration: underline; /* 悬停时添加下划线 */
+        }
+
+        a:active {
+            color: #FF4500; /* 点击时为橙红色 */
+        }
+
+        a:visited {
+            color: #9370DB; /* 已访问链接为淡紫色 */
+        }
+	iframe {
+		width:100%;
+		border:none;
+		background-color: transparent;
+		display:block;
+	}
+    </style>
+    <title>TunArund's L4D2 Server</title>
+    <link rel="shortcut icon" href="/static/img/favicon.ico">
+</head>
+
+<body>
+    <img class="bg" src="/static/img/motd.png">
+    <h1>其他指令</h1>
+    <pre class="list">
+        !csm 换模型
+        
+        [对抗模式]
+        !teams 换阵营
+        !tankpass 转让Tank
+        
+        [生存模式]
+        !shop
+        
+        [战役玩特]
+        !pb 加入Tank候选
+        !team3 切换感染阵营
+        !team2 切换生还阵营
+    </pre>
+    <h5>有时鼠标按住拖动才能往下翻哦！</h5>
+    <iframe name="addonlist" src="/static/txt/addonlist.txt" height="300px" width="100%"></iframe>
+    <h1><a href="/static/html/战役模式玩特感.html">战役模式玩特感？</a></h1>
+    <h1><a href="https://himeneko.cn/nekospecials/">Neko多特指令</a></h1>
+    <pre class="list">
+    !ntg 全功能特感菜单
+    !nekotg 全功能特感菜单
+    !tgmenu 全功能特感菜单
+    !tgadmin 全功能特感菜单
+
+    !ntgversion 特感版本查询/状态检查
+    !nhud HUD显示调整
+    !reloadntgconfig 重载多特配置文件(Neko_Specials_binhooks.cfg)
+    !reloadhudconfig 重载HUD配置文件(Neko_KillHud_binhooks.cfg)
+    !updateservername 手动更新服务器名字
+    !nekoupdate 执行检查更新
+    !tgvoteadmin 控制玩家投票模块
+    </pre>
+    <h1><a href="https://github.com/GlowingTree880/L4D2_LittlePlugins/tree/main/SimpleMode">!match模式切换</a></h1>
+    <pre class="list">
+	!addmode *模式名称*（在模式目录中增加一个模式，仅管理员可用）
+	!delmode *模式名称*（在模式目录中删除一个已有的模式，仅管理员可用）
+	!forcematch，fm *模式名称*（强制开始一个模式，仅管理员可用）
+	!resetmatch（强制卸载当前模式，仅管理员可用）
+	!match（展示模式投票菜单）
+	!match *模式名称*（强制开始一个模式，仅管理员可用）
+	!rmatch（投票卸载当前模式）
+    </pre>
+    <h1>Neko多特模式</h1>
+    <pre class="list">
+可变模式:无序刷特，融合其它各个模式的优点并新增针对某个玩家附近刷特...
+地狱模式:无序刷特，任何幸存者周围的位置包括无视障碍物以及可在幸存者视线范围内...
+噩梦模式:无序刷特，可在幸存者周围的位置包括无视障碍物但不会在幸存者视线范围内...
+正常模式:有序刷特，可在幸存者周围的位置且只在幸存者看不见的障碍物后面刷特...
+导演模式:有序刷特，可在幸存者周围的位置且只在幸存者看不见的障碍物后面刷特，但时间上无法控制，只会更慢，不会更快刷特...
+
+导演模式下:
+导演引擎模式产生特感，但时间上不准确，这是引擎本身的行为导致的，它就像一个智能AI，
+我们无法准确确定它的时间，难度较小，和脚本引擎的产生特感模式几乎一致。
+
+普通模式下:
+正常产生特感，产生位置经过了深度算法分析和数据结构优化，
+性能上比现有的刷特插件更节约性能，产生的位置将各加合理，难度适中，但比引擎刷特难度更加大。
+有两个子模式，子模式1和子模式2无论是刷特位置和刷特性能并无明显的变化
+子模式1-更趋近于对每个幸存者的位置对应的刷特位置产生最优解
+子模式2-更趋近于对于整体队伍的位置对应的刷特位置产生最优解
+玩家可根据自身情况自由选择。
+
+噩梦模式下：
+它的刷特地点不同于正常模式和地狱模式，但本质还是经过算法深度分析的，
+它将会产生在生还者的周围任何不在幸存者视线内，但有利于袭击生还者的角落，
+它不再仅仅是产生在障碍物的后面，难度比较大，望谨慎选择!
+子模式1-为原来噩梦模式
+子模式2-开启梦魇模式，根据官方底层api基础上运用算法实现的，它比噩梦模式更加强大！
+无论是刷特机制，刷特位置，刷特性能等，以及开发自由度上，都比噩梦模式更加优越，它不是在噩梦基础上进行提升的，它是全新的更优越的算法模式。
+
+地狱模式下：
+特感产生的位置将是无序但有规则的，但本质还是经过算法深度分析的，
+它将会产生在生还者的周围任何有利于袭击生还者的角落，它不再仅仅是产生在障碍物的后面，
+请慎用此模式，非抖M请远离...
+子模式1-为原来地狱模式
+子模式2-是炼狱模式，根据官方底层api基础上运用算法实现的，它比地狱模式更加强大！
+无论是刷特机制，刷特位置，刷特性能等，以及开发自由度上，都比地狱模式更加优越，它不是在地狱基础上进行提升的，它是全新的更优越的算法模式。
+
+可变模式下：
+相比导演引擎寻位，优势主要在于2点：
+第一，支持针对某一个玩家前面或者后面或者任意位置刷特，比如三个人，可以针对中间的这个人刻意寻位刷特，刷在他的前面或者后面都行。
+并且支持是否可视刷特，支持最小和最大距离设定，解决了某个人落单或者在中间当咸鱼的玩家。
+第二，导演引擎刷特位置基本在每个地图的特定属性区域，即使前方有障碍物，但是不是特定属性区域也不会刷特，算法刷特是前方一切区域均可刷特，如果选择不可视刷特，只要前方有障碍物，并且是距离范围内，都能够刷出特感 优化了算法!
+    </pre>
+    
+    <a class="list" href="https://beian.miit.gov.cn/" target="_blank">豫ICP备2025106241号-1</a>
+    <img src="/static/img/备案图标.png" alt="备案图标">
+    <a class="list" href="https://beian.mps.gov.cn/#/query/webSearch?code=41010402003119" rel="noreferrer" target="_blank">豫公网安备41010402003119号</a>
+</body>
+
+</html>

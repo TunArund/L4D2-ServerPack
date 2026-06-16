@@ -1,0 +1,246 @@
+<!DOCTYPE html><html><head>
+      <title>readme</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="file:///c:\Users\yaoku\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.18\crossnote\dependencies\katex\katex.min.css">
+      
+      
+      
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <!-- The content below will be included at the end of the <head> element. --><script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script></head><body style="background:transparent;" for="html-export">
+    
+    
+      <div class="crossnote markdown-preview  ">
+      
+<h1 id="允许玩家在非对抗模式下扮演特感及坦克">📌允许玩家在非对抗模式下扮演特感及坦克 </h1>
+<p>此功能需要安装2个插件:</p>
+<details><summary>control_zombies.smx</summary>
+<p>└─ 控制特感<br><br>
+└─ <strong>原作 <a href="https://github.com/umlka/l4d2/tree/3b9084b5a55b689bf9df409fdcf1a1109532c393/control_zombies">Github</a></strong>, 无修改</p>
+</details>
+<details><summary>l4d2_dominatorscontrol.smx</summary>
+<p>└─ 解除控制性特感数量限制<br><br>
+└─ <strong>原作 <a href="https://github.com/SirPlease/L4D2-Competitive-Rework/blob/a89e98ab9f54ba4fb8f04d7af3135a339b7e8445/addons/sourcemod/scripting/l4d2_dominatorscontrol.sp#L4">Github</a></strong>, 无修改</p>
+</details>
+<hr>
+<details><summary>Command | 指令</summary>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>功能</th>
+<th>权限</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>!team3</code></td>
+<td>切换到特感方</td>
+<td>Console</td>
+</tr>
+<tr>
+<td><code>!team2</code></td>
+<td>切换到生还方</td>
+<td>Console</td>
+</tr>
+<tr>
+<td><code>!pb</code></td>
+<td>提前叛变</td>
+<td>Admin</td>
+</tr>
+<tr>
+<td><code>!pt</code></td>
+<td>转交坦克</td>
+<td>Admin</td>
+</tr>
+<tr>
+<td><code>!tt</code></td>
+<td>接管坦克</td>
+<td>Admin</td>
+</tr>
+<tr>
+<td><code>!class</code></td>
+<td>灵魂状态下更改特感类型或鼠标中键</td>
+<td>Console</td>
+</tr>
+<tr>
+<td>鼠标中键</td>
+<td>非灵魂状态下管理员重置特感技能冷却时间</td>
+<td>Admin</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</details>
+<p>Video | 影片展示<br>
+<br>None</p>
+<p>Image | 图示<br>
+<br>None</p>
+<details><summary>ConVar | 控制台变量</summary>
+<details><summary>[control_zombies.smx]</summary>
+<pre data-role="codeBlock" data-info="sourcepawn" class="language-sourcepawn sourcepawn"><code>// 至少有多少名正常生还者(未被控,未倒地,未死亡)时,才允许玩家接管坦克
+// Default: "1"
+// Minimum: "0.000000"
+cz_allow_survivor_limit "1"
+
+// 在感染玩家进入灵魂状态后自动向其显示更改类型的菜单?(0=不显示,-1=每次都显示,大于0=每回合总计显示的最大次数)
+// Default: "3"
+// Minimum: "-1.000000"
+cz_atuo_display_menu "3"
+
+// sm_team2,sm_team3命令的冷却时间(0.0-无冷却)
+// Default: "60.0"
+// Minimum: "0.000000"
+cz_cmd_cooldown_time "60.0"
+
+// 特感玩家杀死生还者玩家后是否互换队伍?(0=否,1=是)
+// Default: "0"
+cz_exchange_team "0"
+
+// 要达到什么免疫级别才能绕过sm_team2,sm_team3,sm_pb,sm_tt,sm_pt,sm_class,鼠标中键重置冷的使用限制
+// Default: "99;99;99;99;99;99;99"
+cz_immunity_levels "99;99;99;99;99;99;99"
+
+// 抽取哪些玩家来接管坦克?(-1=由游戏自身控制,0=不抽取,1=叛变玩家,2=生还者,4=感染者)
+// Default: "7"
+cz_lot_target_player "7"
+
+// 在哪些地图上才允许叛变和接管坦克(0=禁用叛变和接管坦克,1=非结局地图,2=结局地图,3=所有地图)
+// Default: "3"
+// Minimum: "0.000000"
+cz_map_filter_tank "3"
+
+// 坦克玩家达到多少后插件将不再控制玩家接管(0=不接管坦克)
+// Default: "1"
+// Minimum: "0.000000"
+cz_max_tank_player "1"
+
+// 换图,过关以及任务失败时是否自动将特感玩家切换到哪个队伍?(0=不切换,1=旁观者,2=生还者)
+// Default: "0"
+cz_pz_change_team_to "0"
+
+// 特感玩家在ghost状态下切换特感类型是否进行血量惩罚(0.0=不惩罚.计算方式为当前血量乘以该值)
+// Default: "0"
+// Minimum: "0.000000"
+cz_pz_punish_health "0"
+
+// 特感玩家在ghost状态下切换特感类型后下次复活延长的时间(0=插件不会延长复活时间)
+// Default: "0"
+// Minimum: "0.000000"
+cz_pz_punish_time "0"
+
+// 特感玩家复活后自动处死的时间(0=不会处死复活后的特感玩家)
+// Default: "120"
+// Minimum: "0.000000"
+cz_pz_suicide_time "120"
+
+// 感染玩家数量达到多少后将限制使用sm_team3命令(-1=感染玩家不能超过生还玩家,大于等于0=感染玩家不能超过该值)
+// Default: "-1"
+// Minimum: "-1.000000"
+cz_pz_team_limit "-1"
+
+// 什么情况下sm_team2,sm_team3命令会进入冷却(1=使用其中一个命令,2=坦克玩家掉控,4=坦克玩家死亡,8=坦克玩家未及时重生,16=特感玩家杀掉生还者玩家,31=所有)
+// Default: "31"
+cz_return_enter_cooling "31"
+
+// 准备叛变的玩家数量为0时,自动抽取生还者和感染者玩家的几率(排除闲置旁观玩家)(0.0=不自动抽取)
+// Default: "100"
+cz_survivor_allow_chance "100"
+
+// 特感玩家看到的黑白状态生还者发光颜色
+// Default: "255 255 255"
+cz_survivor_color_blackwhite "255 255 255"
+
+// 是否给生还者创发光建模型?(0=否,1=是)
+// Default: "1"
+cz_survivor_color_enable "1"
+
+// 特感玩家看到的倒地状态生还者发光颜色
+// Default: "180 0 0"
+cz_survivor_color_incapacitated "180 0 0"
+
+// 特感玩家看到的正常状态生还者发光颜色
+// Default: "0 180 0"
+cz_survivor_color_normal "0 180 0"
+
+// 特感玩家看到的被Boomer喷或炸中过的生还者发光颜色
+// Default: "155 0 180"
+cz_survivor_color_nowit "155 0 180"
+
+// 插件在控制玩家接管坦克后是否进入ghost状态
+// Default: "1"
+cz_takeover_ghost "1"
+
+// 哪些标志能绕过sm_team2,sm_team3,sm_pb,sm_tt,sm_pt,sm_class,鼠标中键重置冷却的使用限制(留空表示所有人都不会被限制)
+// Default: ";z;;z;z;;z"
+cz_user_flagbits ";z;;z;z;;z"
+</code></pre><hr>
+</details>
+<details><summary>[l4d2_dominatorscontrol.smx]</summary>
+<p>建议配置</p>
+<pre data-role="codeBlock" data-info="sourcepawn" class="language-sourcepawn sourcepawn"><code>//哪个受感染阶层被视为统治者
+//1=Smoker, 2=Bommer, 4=Hunter, 8=Spitter, 16=Jockey, 32=Charger
+sm_cvar l4d2_dominators 0
+
+// 复活时间
+sm_cvar z_ghost_delay_min 5
+sm_cvar z_ghost_delay_max 10
+sm_cvar z_ghost_delay_minspawn 0
+
+// 复活最小距离
+sm_cvar z_spawn_safety_range 1
+
+// 特感数量限制
+sm_cvar z_max_player_zombies 28
+sm_cvar z_versus_smoker_limit 5
+sm_cvar z_versus_boomer_limit 5
+sm_cvar z_versus_hunter_limit 5
+sm_cvar z_versus_spitter_limit 5
+sm_cvar z_versus_jockey_limit 5
+sm_cvar z_versus_charger_limit 5
+</code></pre></details>
+<hr>
+</details>
+<details><summary>Translation Support | 支持语言</summary>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>简体中文
+</code></pre></details>
+<details><summary>Apply to | 适用于</summary>
+<pre data-role="codeBlock" data-info="php" class="language-php php"><code><span class="token constant">L4D2</span> only
+</code></pre></details>
+<details><summary>Require | 需求</summary>
+<ol>
+<li><a href="https://forums.alliedmods.net/showthread.php?t=321696">[L4D &amp; L4D2] Left 4 DHooks Direct</a></li>
+<li><a href="https://forums.alliedmods.net/showthread.php?t=317175">Source Scramble</a></li>
+</ol>
+</details>
+<details><summary>Related Plugin | 相关插件</summary>
+<ol>
+<li><a href="https://forums.alliedmods.net/showthread.php?p=2751992">Zombie Spawn Fix</a> 防止加载卡特, 结局卡特, 特感玩家在玩家加载时无法从灵魂状态下重生以及<code>director_no_specials</code>设置为1时提示的重生已禁用</li>
+</ol>
+</details>
+<p>Changelog | 版本日志<br>
+<br>None</p>
+
+      </div>
+      
+      
+    
+    
+    
+    
+    
+    
+  
+    </body></html>
