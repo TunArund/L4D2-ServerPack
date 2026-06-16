@@ -1,0 +1,1 @@
+/home/steam/l4d2server/left4dead2/addonlist.txt

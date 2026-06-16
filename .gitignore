@@ -1,0 +1,28 @@
+# ============================================================
+# 游戏资产 — 不进 Git，本地维护
+# ============================================================
+l4d2/src/
+
+# ============================================================
+# 环境变量（含密钥）
+# ============================================================
+.env
+.env.prod
+
+# ============================================================
+# Docker 运行时数据（bind-mount 目录内容）
+# ============================================================
+mysql/data/*
+!mysql/data/.gitkeep
+l4d2/data/coop/addons/*
+!l4d2/data/coop/addons/.gitkeep
+l4d2/data/coop/ems/*
+!l4d2/data/coop/ems/.gitkeep
+l4d2/data/versus/addons/*
+!l4d2/data/versus/addons/.gitkeep
+l4d2/data/versus/ems/*
+!l4d2/data/versus/ems/.gitkeep
+web/data/logs/*
+!web/data/logs/.gitkeep
+nginx/data/certs/*
+!nginx/data/certs/.gitkeep

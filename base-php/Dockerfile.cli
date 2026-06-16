@@ -1,0 +1,13 @@
+# ============================================================
+# l4d2-base-php-cli — 预编译 PHP CLI 扩展（gd/mysqli/pdo/pcntl）
+# downloader 和 sidecar 共用此镜像，避免重复编译（省 500s ×2）
+# ============================================================
+FROM php:8.2-cli-alpine
+
+RUN apk add --no-cache --virtual .build-deps \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd mysqli pdo pdo_mysql pcntl \
+    && apk del .build-deps

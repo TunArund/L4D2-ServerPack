@@ -1,0 +1,19 @@
+# Windows 文件（Linux 服务器不需要）
+**/*.exe
+**/*.dll
+**/*.ico
+
+# 游戏本体（通过 bind mount 挂载，不打包进镜像）
+l4d2/src/
+
+# 其他服务源码（L4D2 构建不需要）
+web/
+downloader/
+mysql/
+nginx/
+sidecar/
+netdata/
+addons/
+.git/
+.github/
+docker-compose.yml
