@@ -2,7 +2,7 @@
 # l4d2-base-php-fpm — 预编译 PHP-FPM 扩展（gd/mysqli/pdo）
 # php 服务使用此镜像，避免每次重复编译
 # ============================================================
-FROM php:8.2-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 ARG APK_MIRROR="mirrors.aliyun.com"
 RUN if [ -n "$APK_MIRROR" ]; then \
