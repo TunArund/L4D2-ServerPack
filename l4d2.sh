@@ -63,11 +63,12 @@ download_game() {
     ./steamcmd.sh \
         +force_install_dir "$INSTALL_DIR" \
         +login anonymous \
-        +app_update "$APP_ID" validate \
+        +@sSteamCmdForcePlatformType windows \
+        +app_update "$APP_ID" \
+        +@sSteamCmdForcePlatformType linux \
+        +app_update ${GAME_ID} validate \
         +quit
 
-    echo "  游戏文件 ${mode} 完成"
-    du -sh "$INSTALL_DIR"
 }
 
 # ============================================================
