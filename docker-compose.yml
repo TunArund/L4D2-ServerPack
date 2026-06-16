@@ -1,5 +1,25 @@
 services:
   # ============================================================
+  # PHP 基础镜像（仅构建，不运行 — profiles: build）
+  # 编译 gd/mysqli/pdo/pcntl 一次，php/downloader/sidecar 复用
+  # ============================================================
+  base-php-fpm:
+    build:
+      context: ./base-php
+      dockerfile: Dockerfile.fpm
+    image: ${REGISTRY}l4d2-base-php-fpm:latest
+    profiles:
+      - build
+
+  base-php-cli:
+    build:
+      context: ./base-php
+      dockerfile: Dockerfile.cli
+    image: ${REGISTRY}l4d2-base-php-cli:latest
+    profiles:
+      - build
+
+  # ============================================================
   # MySQL 数据库
   # ============================================================
   mysql:
@@ -171,8 +191,8 @@ services:
       - ./l4d2/data/coop/ems:/home/steam/left4dead2/ems
       - ./l4d2/data/coop/scripts/vscripts:/home/steam/left4dead2/scripts/vscripts
     ports:
-      - "27015:27015/udp"
-      - "27015:27015/tcp"
+      - "${L4D2_PORT:-27015}:27015/udp"
+      - "${L4D2_PORT:-27015}:27015/tcp"
 
   # ============================================================
   # L4D2 对抗服（复用战役服镜像，不同配置和挂载）
@@ -201,5 +221,5 @@ services:
       - ./l4d2/data/versus/host.txt:/home/steam/l4d2/left4dead2/myhost.txt
       - ./l4d2/data/versus/motd.txt:/home/steam/l4d2/left4dead2/mymotd.txt
     ports:
-      - "27014:27015/udp"
-      - "27014:27015/tcp"
+      - "${L4D2_VERSUS_PORT:-27014}:27015/udp"
+      - "${L4D2_VERSUS_PORT:-27014}:27015/tcp"
