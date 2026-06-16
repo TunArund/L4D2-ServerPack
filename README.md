@@ -9,29 +9,37 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/TunArun/L4D2-ServerPack.git && cd l4d2-server
-cp .env.example .env            # 编辑填入 MySQL 密码等配置
+git clone https://github.com/TunArund/L4D2-ServerPack.git l4d2-server && cd l4d2-server
+cp .env.example .env            # 填入 MySQL 密码 + SIDECAR_TOKEN
 ./l4d2.sh install               # steamcmd 下载游戏文件 (~9GB)
 ```
 
-**开发**（本地构建，`docker compose build` 自动先编译 base-php）：
+**Docker Hub 加速**（国内用户，解决 mysql/glances 拉取慢）：
 ```bash
-docker compose build
+sudo tee /etc/docker/daemon.json <<'EOF'
+{ "registry-mirrors": ["https://docker.1ms.run"] }
+EOF
+sudo systemctl restart docker
+```
+
+**本地构建**（推荐国内用户，REGISTRY 留空）：
+```bash
+docker compose build            # 首次 ~500s，后续缓存秒级
 docker compose up -d
 ```
 
-**生产**（从 ghcr.io 拉取预构建镜像）：
+**拉取预构建镜像**（适合国外 VPS，ghcr.io 速度快）：
 ```bash
-cp .env.prod .env               # REGISTRY 指向 ghcr.io，无需凭据
+# .env 中 REGISTRY=ghcr.io/tunarund/
 docker compose pull
 docker compose up -d
 ```
 
-**推送镜像**（在 .env 中填入 `GITHUB_USER` / `GITHUB_TOKEN` 后）：
+**推送镜像**（`.env` 中填入 `GITHUB_USER` / `GITHUB_TOKEN`）：
 ```bash
 ./docker.sh latest
 ```
-> Token 生成：[GitHub Settings → Personal access tokens](https://github.com/settings/tokens) → Classic → 勾选 `write:packages`。镜像推送到 ghcr.io 后需在 Package Settings 中设为 Public 方可公开拉取。
+> Token：[GitHub Settings → Tokens (classic)](https://github.com/settings/tokens) → `write:packages`。首次推送后在 Package Settings 中设为 Public。
 
 ---
 
@@ -154,7 +162,7 @@ l4d2:             # 战役服               l4d2-versus:      # 对抗服
 ```
 l4d2-server/
 ├── docker-compose.yml
-├── .env.example / .env.prod
+├── .env.example
 ├── docker.sh                   # 构建 & 推送到 ghcr.io
 ├── l4d2.sh                     # steamcmd 下载/更新游戏
 ├── healthcheck.sh

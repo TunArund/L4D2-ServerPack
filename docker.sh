@@ -131,7 +131,7 @@ fi
 
 if [[ -z "${GITHUB_USER:-}" ]]; then
     echo "错误: .env 中未设置 GITHUB_USER"
-    echo "设置为你的 GitHub 用户名，例如: GITHUB_USER=TunArun"
+    echo "设置为你的 GitHub 用户名，例如: GITHUB_USER=TunArund"
     exit 1
 fi
 
@@ -142,12 +142,18 @@ echo ">>> 登录 ghcr.io (用户: $GITHUB_USER) ..."
 echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_USER" --password-stdin
 
 # ============================================================
-# 4. 构建全部镜像（base-php → 服务镜像，Compose 自动处理顺序）
+# 4. 构建基础镜像（服务 FROM 依赖，必须先构建）
 # ============================================================
 echo ""
-echo ">>> 构建镜像 (REGISTRY=$TARGET_REGISTRY) ..."
+echo ">>> 构建基础镜像 ..."
+REGISTRY="$TARGET_REGISTRY" docker compose build base-php-fpm base-php-cli
 
-REGISTRY="$TARGET_REGISTRY" docker compose build
+# ============================================================
+# 5. 构建服务镜像
+# ============================================================
+echo ""
+echo ">>> 构建服务镜像 ..."
+REGISTRY="$TARGET_REGISTRY" docker compose build "${IMAGES[@]%%:*}"
 
 # ============================================================
 # 6. 推送
@@ -167,7 +173,7 @@ for entry in "${ALL_IMAGES[@]}"; do
 done
 
 # ============================================================
-# 6. 完成
+# 7. 完成
 # ============================================================
 echo ""
 echo "=============================================="
@@ -180,15 +186,15 @@ for entry in "${ALL_IMAGES[@]}"; do
     echo "  ${TARGET_REGISTRY}${REPO}:${VERSION}"
 done
 echo ""
-echo "设为公开（首次推送后需要手动设置）:"
-echo "  https://github.com/TunArun/L4D2-ServerPack/pkgs/container/l4d2-server-game/settings"
-echo "  → Danger Zone → Change visibility → Public"
+echo "设为公开（首次推送后手动设置）:"
+echo "  进入 https://github.com/TunArund/L4D2-ServerPack/pkgs/container/l4d2-server-game"
+echo "  → Package Settings → Manage Access → Change visibility → Public"
 echo ""
 echo "公开后任何人可直接拉取:"
 echo "  docker pull ghcr.io/tunarund/l4d2-server-game:latest"
 echo ""
 echo "生产环境部署:"
-echo "  1. git clone <repo> && cd l4d2-server"
-echo "  2. cp .env.prod .env"
+echo "  1. git clone <repo> l4d2-server && cd l4d2-server"
+echo "  2. cp .env.example .env    # 编辑 REGISTRY=ghcr.io/tunarund/ 和 SIDECAR_TOKEN"
 echo "  3. docker compose pull     # 公开镜像无需登录"
 echo "  4. docker compose up -d"
