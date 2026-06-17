@@ -1,8 +1,7 @@
 <?php
 include_once 'api/tools.php';
 include_once 'navbar.php';
-# POST 处理评论
-session_start();
+# POST 处理评论（session 已在 navbar.php 中启动）
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
   $comment = htmlspecialchars($_POST['comment']);
   $map_id = $_GET['id'];
@@ -36,10 +35,10 @@ if ($maps_info) {
   $steamlink = 'steam://url/CommunityFilePage/'.$result['steam_id'];
   $downlink = $result['downlink'];
   $description = $result['description'];
-  $records = json_decode($result['records']);
+  $records = json_decode($result['records'] ?? '[]');
   $subscriptions = $result['subscriptions'];
   $size = bytes_to_str($result['size']);
-  $img_urls = json_decode($result['img_urls']);
+  $img_urls = json_decode($result['img_urls'] ?? '[]');
   if(empty($img_urls))$img_urls = array($result['preview_url']);
 } else {
   $title = '无此地图';
