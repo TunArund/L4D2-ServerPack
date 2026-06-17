@@ -106,6 +106,43 @@ l4d2:             # 战役服               l4d2-versus:      # 对抗服
     - 27015:27015                           - 27014:27015
 ```
 
+### 挂载策略
+
+两个容器共享同一份游戏本体 `${GAME_DIR}`（只读使用），但通过 **按路径覆盖挂载** 实现配置隔离：
+
+```
+${GAME_DIR:-./l4d2/src}          ← 游戏本体（共享，两个容器只读使用）
+  ├── left4dead2/addons/          ← 被 coop 或 versus 的 addons 覆盖
+  ├── left4dead2/cfg/             ← 部分子路径被覆盖，其余共享
+  └── ...
+
+l4d2/data/coop/                   ← 战役服专用数据（不进 Git）
+  ├── addons/  → 覆盖 addons/
+  ├── cfg/     → 覆盖 cfg/server.cfg, cfg/sourcemod/, cfg/cfgogl/ ...
+  └── ...
+
+l4d2/data/versus/                 ← 对抗服专用数据（不进 Git）
+  ├── addons/  → 覆盖 addons/
+  ├── cfg/     → 覆盖 cfg/server.cfg, cfg/stripper/, cfg/cvar_tracking.cfg ...
+  └── ...
+```
+
+> **为什么不冲突？** 两个容器是独立实例，各自把不同宿主机路径挂载到各自容器内的相同位置，互不干扰。共享 `${GAME_DIR}` 中的默认文件（如 maps、materials）两个容器只读访问，写操作（日志、cvar_tracking）通过覆盖挂载隔离到各自目录。
+
+### 数据目录与 Git 忽略策略
+
+`l4d2/data/{coop,versus}/` 下的内容分为两类：
+
+| 目录/文件 | Git | 原因 |
+|-----------|-----|------|
+| `addons/*` | **忽略**（仅保留 `.gitkeep`） | 二进制插件/第三方 vpk，不进仓库，本地维护 |
+| `ems/*` | **忽略**（仅保留 `.gitkeep`） | 运行时数据 |
+| `cfg/*` | **忽略**（仅保留 `.gitkeep`） | 配置文件含服务器特定设置，通过 `.env` 管理差异 |
+| `scripts/*` | **忽略**（仅保留 `.gitkeep`） | vscripts 脚本，随 addons 分发 |
+| `host.txt` / `motd.txt` | **忽略** | 服务器身份信息，环境相关 |
+
+> `.gitkeep` 文件保留目录结构在 Git 中可见，实际内容通过 scp/rsync 同步到服务器。插件目录（metamod、sourcemod、stripper 等）及其配置都放在 addons/ 和 cfg/ 下随 `.gitkeep` 一起手动管理。
+
 > UID/GID 必须与 `l4d2/src/` owner 一致，否则 SourceMod 日志写入 Permission denied。
 
 ---
@@ -175,7 +212,42 @@ l4d2-server/
 ```
 
 ---
+## SSL证书快速配置
 
+### 阿里云 DNS（推荐）
+
+```bash
+# ① 安装 acme.sh
+curl https://get.acme.sh | sh && source ~/.bashrc
+
+# ② 获取 AccessKey（https://ram.console.aliyun.com/users → 子用户 → OpenAPI访问）
+export Ali_Key="LTAI5t..."
+export Ali_Secret="..."
+
+# ③ 申请证书（Let's Encrypt, 自动 DNS TXT 验证）
+acme.sh --set-default-ca --server letsencrypt
+acme.sh --issue --dns dns_ali -d l4d2.tunarund.top
+
+# ④ 安装到 nginx certs 目录，证书更新后自动 reload
+acme.sh --install-cert -d l4d2.tunarund.top \
+  --key-file       /home/steam/L4D2-ServerPack/nginx/data/certs/privkey.pem \
+  --fullchain-file /home/steam/L4D2-ServerPack/nginx/data/certs/fullchain.pem \
+  --reloadcmd      "docker exec l4d2-nginx nginx -s reload"
+```
+
+### 腾讯云 DNSPod
+
+```bash
+# AccessKey → https://console.dnspod.cn/account/token/token
+export DP_Id="你的DNSPod_ID"
+export DP_Key="你的DNSPod_Token"
+acme.sh --issue --dns dns_dp -d l4d2.tunarund.top
+# install-cert 同上
+```
+### nginx配置
+./nginx/data/conf.d/l4d2.conf
+
+> 证书 90 天有效，acme.sh 自动添加 cron 续期任务，无需手动操作。
 ## 致谢
 https://github.com/KevonLin/l4d2-docker-zonemod
 给了steamcmd便捷下载求生之路2服务器文件的指令
