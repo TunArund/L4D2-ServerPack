@@ -37,3 +37,9 @@ web/data/logs/*
 !web/data/logs/.gitkeep
 nginx/data/certs/*
 !nginx/data/certs/.gitkeep
+
+# ============================================================
+# 开发工具（仅 dev 分支使用，main 分支忽略）
+# ============================================================
+docker-compose.dev.yml
+php-dev.sh
