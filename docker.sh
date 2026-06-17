@@ -214,29 +214,6 @@ cmd_push() {
     echo "公开后拉取: docker pull ghcr.io/tunarund/l4d2-server-game:latest"
 }
 
-cmd_fixperms() {
-    echo ">>> 修复挂载目录权限 (sudo 提权) ..."
-    echo "    容器写入的文件可能属于 root 或其它 UID，"
-    echo "    普通用户无法删除。此命令将目录 owner 重置为当前用户。"
-
-    # 先停掉可能正在写入的容器
-    docker compose stop mysql downloader php l4d2 l4d2-versus 2>/dev/null || true
-
-    local dirs=(
-        "./mysql/data"
-        "./web/data/logs"
-        "./l4d2/data"
-    )
-    for d in "${dirs[@]}"; do
-        if [[ -d "$d" ]]; then
-            sudo chown -R "$(id -u):$(id -g)" "$d"
-            echo "    ✓ $d"
-        fi
-    done
-
-    echo ">>> 权限修复完成"
-}
-
 cmd_clean() {
     ensure_docker
     echo ">>> 清理前磁盘占用:"
@@ -265,7 +242,6 @@ show_help() {
     echo "  pull            从 ghcr.io 拉取镜像"
     echo "  push [ver]      构建并推送到 ghcr.io (需 GITHUB_TOKEN)"
     echo "  clean           清理悬空镜像和构建缓存"
-    echo "  fix-perms       修复挂载目录权限 (容器写入的文件普通用户删不掉时用)"
     echo ""
     echo "示例:"
     echo "  ./docker.sh install          # 新机器第一步"
@@ -284,6 +260,5 @@ case "${1:-help}" in
     pull)     cmd_pull ;;
     push)     cmd_push "${2:-latest}" ;;
     clean)    cmd_clean ;;
-    fix-perms) cmd_fixperms ;;
     help|*)   show_help ;;
 esac

@@ -28,6 +28,24 @@ if ($tab === 'inbox' && isset($_GET['delete_id'])) {
     header('Location: /personal.php?tab=inbox');
     exit;
 }
+
+// 全部标为已读
+if ($tab === 'inbox' && isset($_GET['mark_all_read'])) {
+    $stmt = $pdo->prepare("UPDATE messages SET is_read = 1 WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    header('Location: /personal.php?tab=inbox');
+    exit;
+}
+
+// 批量删除
+if ($tab === 'inbox' && !empty($_GET['delete_ids'])) {
+    $ids = array_map('intval', (array)$_GET['delete_ids']);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $pdo->prepare("DELETE FROM messages WHERE id IN ($placeholders) AND user_id = ?");
+    $stmt->execute([...$ids, $user_id]);
+    header('Location: /personal.php?tab=inbox');
+    exit;
+}
 /**
  * 打印左侧tab栏
  */
@@ -96,7 +114,7 @@ function printProfile($pdo, $user_id, $isAdmin)
 	echo $profile;
 }
 /**
- * 打印收件箱tab
+ * 打印收件箱tab — 紧凑排版、内联展开、批量操作
  */
 function printInbox($pdo, $user_id)
 {
@@ -104,54 +122,77 @@ function printInbox($pdo, $user_id)
     $stmt->execute([$user_id]);
     $msgs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $detail = '';
-    $selected_id = isset($_GET['message_id']) ? intval($_GET['message_id']) : 0;
-
     if (!$msgs) {
-        $list = '<p class="text-muted">暂无消息。</p>';
-    } else {
-        $items = '';
-        foreach ($msgs as $msg) {
-            $id = $msg['id'];
-            $t = htmlspecialchars($msg['title']);
-            $time = htmlspecialchars($msg['created_at']);
-            $badge = $msg['is_read'] ? '' : ' <span class="badge bg-danger ms-1">未读</span>';
-            $active = ($id === $selected_id) ? ' active' : '';
+        echo <<<HTML
+        <div class="card">
+            <div class="card-header">收件箱</div>
+            <div class="card-body"><p class="text-muted mb-0">暂无消息。</p></div>
+        </div>
+        HTML;
+        return;
+    }
 
-            $items .= <<<HTML
-                <a href="?tab=inbox&message_id={$id}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center{$active}">
-                    <span>{$t}{$badge}</span>
-                    <small class="text-muted ms-2 text-end" style="min-width:140px">{$time}
-                        <a href="?tab=inbox&delete_id={$id}" class="btn btn-outline-danger btn-sm ms-2" onclick="return confirm('确定删除？')" title="删除">✕</a>
-                    </small>
-                </a>
-            HTML;
+    $unread = count(array_filter($msgs, fn($m) => !$m['is_read']));
 
-            // 查看具体消息
-            if ($id === $selected_id) {
-                $body = nl2br(htmlspecialchars($msg['message']));
-                $detail = <<<HTML
-                    <div class="card mt-3">
-                        <div class="card-header d-flex justify-content-between">
-                            <strong>{$t}</strong>
-                            <small class="text-muted">{$time}</small>
-                        </div>
-                        <div class="card-body">{$body}</div>
-                    </div>
-                HTML;
-            }
-        }
-        $list = '<div class="list-group">' . $items . '</div>';
+    $items = '';
+    foreach ($msgs as $msg) {
+        $id   = $msg['id'];
+        $t    = htmlspecialchars($msg['title']);
+        $time = htmlspecialchars($msg['created_at']);
+        $body = nl2br(htmlspecialchars($msg['message']));
+        $bold = $msg['is_read'] ? 'text-muted' : 'fw-bold';
+        $badge = $msg['is_read'] ? '' : '<span class="badge bg-danger ms-1">未读</span>';
+
+        $items .= <<<ITEM
+        <div class="list-group-item py-2 px-3">
+            <div class="d-flex align-items-center gap-2">
+                <input type="checkbox" name="delete_ids[]" value="{$id}" class="form-check-input inbox-check flex-shrink-0">
+                <button class="btn btn-link text-start text-decoration-none p-0 {$bold} flex-grow-1"
+                        data-bs-toggle="collapse" data-bs-target="#msg-{$id}"
+                        aria-expanded="false" onclick="markRead({$id}, this)">
+                    {$t}{$badge}
+                </button>
+                <small class="text-muted text-end flex-shrink-0">{$time}</small>
+            </div>
+            <div class="collapse mt-2" id="msg-{$id}">
+                <div class="bg-light rounded p-2 small border-start border-3 border-primary">{$body}</div>
+            </div>
+        </div>
+        ITEM;
     }
 
     echo <<<HTML
     <div class="card">
-        <div class="card-header">收件箱</div>
-        <div class="card-body">
-            {$detail}
-            {$list}
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>收件箱 <span class="text-muted small">({$unread} 未读)</span></span>
+            <div class="d-flex gap-2">
+                <a href="?tab=inbox&mark_all_read=1" class="btn btn-outline-secondary btn-sm">全部标为已读</a>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="batchDelete()">删除选中</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">{$items}</div>
         </div>
     </div>
+    <script>
+    function markRead(id, btn) {
+        fetch('/personal.php?tab=inbox&message_id=' + id).then(() => {
+            btn.classList.remove('fw-bold');
+            btn.classList.add('text-muted');
+            const b = btn.querySelector('.badge');
+            if (b) b.remove();
+        });
+    }
+    function batchDelete() {
+        const cbs = document.querySelectorAll('.inbox-check:checked');
+        if (!cbs.length) { alert('请先选择要删除的消息'); return; }
+        if (!confirm('确定删除 ' + cbs.length + ' 条消息？')) return;
+        const p = new URLSearchParams();
+        p.set('tab', 'inbox');
+        cbs.forEach(c => p.append('delete_ids[]', c.value));
+        location.href = '/personal.php?' + p.toString();
+    }
+    </script>
     HTML;
 }
 /**
