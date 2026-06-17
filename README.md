@@ -257,4 +257,4 @@ https://github.com/KevonLin/l4d2-docker-zonemod
 |------|------|
 | UID/GID 不匹配 | `UID`/`GID` 需与 `l4d2/src/` owner 一致，否则 SourceMod Permission denied |
 | steamcmd 下载慢 | 首次 ~9.3GB，可在网络好的机器下载后 scp 到服务器 |
-| 挂载目录删不掉 | 容器内写入的文件（如 MySQL 数据）宿主普通用户无权删除，执行 `./docker.sh fix-perms` 修复 |
+| 挂载目录删不掉 | 这些目录由容器 UID 写入，宿主用户无权删除。用 Docker 指令操作：`docker compose down -v` 删 volumes，或 `docker run --rm -v $(pwd):/mnt alpine rm -rf /mnt/<目录>` |

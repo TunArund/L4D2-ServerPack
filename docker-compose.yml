@@ -162,6 +162,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
+      - /proc/net:/proc/net:ro
       - /:/rootfs:ro
     command: glances -w --disable-webui
 
