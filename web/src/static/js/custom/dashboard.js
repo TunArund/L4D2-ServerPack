@@ -205,7 +205,12 @@ function lineChartOpts(yUnit) {
 
 // CPU / 内存 / 磁盘 — 单线
 function makeLineChart(canvasId, borderColor, fillColor, yUnit) {
-    return new Chart(document.getElementById(canvasId), {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.warn('Chart canvas #' + canvasId + ' not found, skipping');
+        return null;
+    }
+    return new Chart(canvas, {
         type: 'line',
         data: {
             labels: labels,
@@ -229,7 +234,8 @@ const chartRAM  = makeLineChart('chart-ram',  '#43a047', 'rgba(67,160,71,0.1)', 
 const chartDisk = makeLineChart('chart-disk', '#43a047', 'rgba(67,160,71,0.1)', '%');
 
 // 网络 — 双线
-const chartNet = new Chart(document.getElementById('chart-net'), {
+const netCanvas = document.getElementById('chart-net');
+const chartNet = netCanvas ? new Chart(netCanvas, {
     type: 'line',
     data: {
         labels: labels,
@@ -261,10 +267,11 @@ const chartNet = new Chart(document.getElementById('chart-net'), {
             },
         },
     },
-});
+}) : null;
 
 // ---- 更新折线图数据 ----
 function updateLineChart(chart, val) {
+    if (!chart) return;
     push(chart.data.datasets[0].data, val);
     chart.data.datasets[0].borderColor = pctColor(val);
     chart.data.datasets[0].backgroundColor = pctFill(val);
@@ -272,6 +279,7 @@ function updateLineChart(chart, val) {
 }
 
 function updateNetChart(rx, tx) {
+    if (!chartNet) return;
     push(chartNet.data.datasets[0].data, rx);
     push(chartNet.data.datasets[1].data, tx);
     chartNet.update('none');
