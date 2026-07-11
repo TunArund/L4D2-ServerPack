@@ -138,7 +138,7 @@ function update_map($pdo, $id, $install = true){
     $result = uninstall_map($pdo,$id);
     if(!$result['success']) return array_error('更新前删除地图文件失败'.$result['message']);
     //再添加下载任务
-    include_once API_DIR.'downloader.php';
+    include_once 'lib/downloader.php';
     $result = add_download_task($pdo,$steam_info['downlink'],$steam_info['disk_safe'],$id);
     if(!$result['success']) return array_error('添加下载任务失败'.$result['message']);
     //添加下载任务成功，更新状态为updating

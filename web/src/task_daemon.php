@@ -8,9 +8,9 @@ set_time_limit(0);
 ignore_user_abort(true);
 gc_enable();
 
-include_once 'api/downloader.php';
 include_once 'api/tools.php';
-include_once 'api/cos_client.php';
+include_once 'api/lib/downloader.php';
+include_once 'api/lib/uploader.php';
 
 // ============================================================
 // 运行时配置
@@ -130,14 +130,16 @@ function run_cos_sync(PDO $pdo): array {
         return ['success' => false, 'message' => 'COS 未配置'];
     }
 
-    $upload  = cos_batch_upload($pdo);
+    $tasks   = cos_batch_create_tasks($pdo);
     $index   = cos_sync_index();
     $cleanup = cos_cleanup_orphans($pdo);
+
+    $message = "COS 同步：已创建 {$tasks['created']} 个上传任务" . ($tasks['skipped'] > 0 ? "（{$tasks['skipped']} 个文件缺失）" : "") . " | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个";
 
     return [
         'success' => true,
         'data'    => [
-            'message' => "COS 同步完成：上传 {$upload['uploaded']} 跳过 {$upload['skipped']} 失败 {$upload['failed']} | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个",
+            'message' => $message,
             'upload'  => $upload,
             'index'   => $index,
             'cleanup' => $cleanup,
@@ -174,21 +176,61 @@ function process_manual_triggers(PDO $pdo): void {
  *
  * @return bool true=处理了一个任务, false=无待处理任务
  */
-function process_next_download_task(PDO $pdo, string $file_dir, string $daily_log): bool {
-    $task = fetch_download_task($pdo);
+/**
+ * 获取下一个待处理任务（抢占式：download > upload）
+ *
+ * 调度优先级：
+ *   1. download waiting     ← 新下载任务
+ *   2. download downloading ← 中断续传
+ *   3. upload waiting       ← 下载全完成后才处理上传
+ */
+function fetch_next_task(PDO $pdo): ?array {
+    // 1. download waiting
+    $result = $pdo->query("SELECT * FROM tasks WHERE type='download' AND status='waiting' ORDER BY id ASC LIMIT 1");
+    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+
+    // 2. download downloading（断点续传）
+    $result = $pdo->query("SELECT * FROM tasks WHERE type='download' AND status='downloading' ORDER BY id ASC LIMIT 1");
+    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+
+    // 3. upload waiting
+    $result = $pdo->query("SELECT * FROM tasks WHERE type='upload' AND status='waiting' ORDER BY id ASC LIMIT 1");
+    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+
+    return null;
+}
+
+/**
+ * 获取并处理一个任务（抢占式：download > upload）
+ *
+ * @return bool true=处理了一个任务, false=无待处理任务
+ */
+function process_next_task(PDO $pdo, string $file_dir, string $daily_log): bool {
+    $task = fetch_next_task($pdo);
     if (!$task) {
         return false;
     }
 
-    add_log(DAEMON_LOG, 1, "Downloading {$task['disk_safe']} from {$task['downlink']}");
-    $result = download_with_progress($pdo, $task, $file_dir, $daily_log);
+    if ($task['type'] === 'upload') {
+        add_log(DAEMON_LOG, 1, "Uploading {$task['disk_safe']} → COS {$task['dst']}");
+        $result = process_upload_task($pdo, $task);
 
-    if ($result['success']) {
-        add_log(DAEMON_LOG, 1, "Download ok: {$task['disk_safe']}");
-        downlaod_success_callback($pdo, $task);
+        if ($result['success']) {
+            add_log(DAEMON_LOG, 1, "Upload ok: {$task['disk_safe']}");
+        } else {
+            add_log(DAEMON_LOG, 2, "Upload fail: {$task['disk_safe']} — {$result['message']}");
+        }
     } else {
-        add_log(DAEMON_LOG, 2, "Download fail: {$task['disk_safe']} — {$result['message']}");
-        downlaod_fail_callback($pdo, $task);
+        add_log(DAEMON_LOG, 1, "Downloading {$task['disk_safe']} from {$task['src']}");
+        $result = download_with_progress($pdo, $task, $file_dir, $daily_log);
+
+        if ($result['success']) {
+            add_log(DAEMON_LOG, 1, "Download ok: {$task['disk_safe']}");
+            downlaod_success_callback($pdo, $task);
+        } else {
+            add_log(DAEMON_LOG, 2, "Download fail: {$task['disk_safe']} — {$result['message']}");
+            downlaod_fail_callback($pdo, $task);
+        }
     }
 
     return true;
@@ -205,7 +247,7 @@ while ($running) {
     daily_maintenance($web_host, $sider_token, $update_hour, $update_mark);
     process_manual_triggers($pdo);
 
-    if (!process_next_download_task($pdo, $file_dir, $daily_log)) {
+    if (!process_next_task($pdo, $file_dir, $daily_log)) {
         sleep($interval);
     }
 }

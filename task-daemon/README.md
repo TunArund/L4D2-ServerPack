@@ -20,13 +20,15 @@ flowchart TD
 
 ## 下载流程
 
-`process_next_download_task()` → `fetch_download_task()` 从 `download_tasks` 表取 `waiting` 或 `downloading` 状态的任务 → `download_with_progress()` 用 curl 流式下载 vpk 到 `MAP_DIR`。
+`process_next_task()` → `fetch_next_task()` 从 `tasks` 表抢占式取任务（download > upload）→ 按类型分发到 `download_with_progress()` 或 `process_upload_task()`。
 
 **断点续传**：中断后文件保留，下次重试通过 `CURLOPT_RESUME_FROM` 续传。服务器不支持 Range（返回 200 而非 206）时自动删除从头开始。
 
 **回调**：
-- 成功 → `downlaod_success_callback()`：更新 download_tasks 状态为 `success`、maps 状态为 `active`、通知相关用户
-- 失败 → `downlaod_fail_callback()`：download_tasks → `fail`、maps → `abandon`、通知用户
+- 成功 → `downlaod_success_callback()`：更新 tasks 状态为 `success`、maps 为 `active`、通知用户
+- 失败 → `downlaod_fail_callback()`：tasks → `fail`、maps → `abandon`、通知用户
+- 上传成功 → `process_upload_task()` 内部：tasks → `success`、更新 maps.cos_url/cos_version
+- 上传失败 → tasks → `fail`
 
 ## COS 同步
 
@@ -46,7 +48,7 @@ flowchart TD
 
 `daily_maintenance()` 在凌晨指定小时执行，用持久化标记文件（`.daily_update`）防止重启重复：
 
-1. **地图更新**：`call_api('trigger_update_all')` → HTTP 调用 php 容器 → 从 Steam API 拉取最新版本号 → 写 `download_tasks`
+1. **地图更新**：`call_api('trigger_update_all')` → HTTP 调用 php 容器 → 从 Steam API 拉取最新版本号 → 写 `tasks`
 2. **COS 同步**：`run_cos_sync()` 本地执行
 
 `call_api()` 通过 `SIDECAR_TOKEN` 认证，绕过 Web 登录检查。
@@ -78,6 +80,7 @@ flowchart TD
 | 文件 | 说明 |
 |------|------|
 | `web/src/task_daemon.php` | 守护进程主程序 |
-| `web/src/api/downloader.php` | 下载任务管理（`fetch_download_task` / `download_with_progress` / 回调） |
-| `web/src/api/cos_client.php` | COS 客户端（上传/删除/列表/索引页/孤儿清理） |
+| `web/src/api/lib/downloader.php` | 下载任务驱动（`add_download_task` / `download_with_progress` / 回调） |
+| `web/src/api/lib/uploader.php` | COS 客户端 + 上传任务驱动（`process_upload_task` / `cos_batch_create_tasks`） |
+| `web/src/api/tasks.php` | 统一任务查询 API |
 | `web/src/api/tools.php` | 核心库（`conn_db` / `call_api` / `add_log` / 常量定义） |

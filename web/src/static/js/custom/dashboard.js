@@ -1,5 +1,86 @@
 import { formatBytes, formatBits, escHtml } from './tools.js';
 
+// ================================================================
+// COS 上传任务面板（与下载任务结构一致）
+// ================================================================
+
+const cosUploadPanels = {
+    waiting:     { dom: document.querySelector('#cos-upload-waiting'),     count: 10, step: 10, max: 100 },
+    uploading:   { dom: document.querySelector('#cos-upload-uploading'),   count: 10, step: 10, max: 100 },
+    success:     { dom: document.querySelector('#cos-upload-success'),     count: 10, step: 10, max: 100 },
+    fail:        { dom: document.querySelector('#cos-upload-fail'),        count: 10, step: 10, max: 100 },
+};
+
+async function getCosTasks(status, count) {
+    return getTasks(status, count, 'upload');
+}
+
+async function updateCosUploadPanel() {
+    const updateEl = document.getElementById('cos-upload-update');
+    if (!updateEl) return;
+    updateEl.textContent = '最后更新: ' + new Date().toLocaleTimeString();
+
+    for (const [status, panel] of Object.entries(cosUploadPanels)) {
+        try {
+            const tasks = await getCosTasks(status, panel.count);
+            const dom = panel.dom;
+            dom.innerHTML = '';
+            if (status === 'uploading') {
+                // 上传中 — 显示进度条
+                tasks.forEach(task => {
+                    const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
+                    const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
+                    const div = document.createElement('div');
+                    div.className = 'list-group-item';
+                    div.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
+                            <small class="text-muted ms-2">${progress}%</small>
+                        </div>
+                        <small class="text-secondary">${humanReadable}</small>
+                        <div class="progress mt-1" style="height:6px">
+                            <div class="progress-bar bg-info" style="width:${progress}%"></div>
+                        </div>
+                    `;
+                    dom.appendChild(div);
+                });
+            } else {
+                tasks.forEach(task => {
+                    const div = document.createElement('div');
+                    div.className = 'list-group-item';
+                    div.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
+                            <small class="text-muted ms-2">${escHtml(task.created_at)}</small>
+                        </div>
+                        <small class="text-secondary">${formatBytes(task.total_bytes)}</small>
+                    `;
+                    dom.appendChild(div);
+                });
+            }
+            // 查看更多按钮
+            const btn = document.createElement('a');
+            btn.textContent = '查看更多';
+            btn.href = 'javascript:void(0)';
+            btn.className = 'btn btn-link btn-sm d-block mt-1';
+            btn.addEventListener('click', () => {
+                if (panel.count >= panel.max) {
+                    alert('已达到最大显示数量' + panel.max);
+                    return;
+                }
+                panel.count += panel.step;
+                updateCosUploadPanel();
+            });
+            dom.appendChild(btn);
+        } catch (e) {
+            console.error('获取 COS 上传任务失败:', e);
+        }
+    }
+}
+
+updateCosUploadPanel();
+setInterval(updateCosUploadPanel, 5000);
+
 // 下载任务面板配置
 const downloadPanels = {
     downloading: {
@@ -29,12 +110,12 @@ const downloadPanels = {
 };
 
 // 获取下载任务
-async function getDownloadTasks(stat, cnt) {
+async function getTasks(stat, cnt, type = 'download') {
     try {
-        const response = await fetch('/api/download_tasks.php', {
+        const response = await fetch('/api/tasks.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: stat, count: cnt })
+            body: JSON.stringify({ status: stat, count: cnt, type })
         });
         if (!response.ok) throw new Error(`获取下载任务失败,响应码: ${response.status}`);
         const result = await response.json();
@@ -50,34 +131,34 @@ async function updateDownloadPanel() {
     const update = document.querySelector('#download-update');
     update.textContent = `最后更新: ${new Date().toLocaleString()}`;
     for (const [status, panel] of Object.entries(downloadPanels)) {
-        const tasks = await getDownloadTasks(status, panel.count);
+        const tasks = await getTasks(status, panel.count);
         if (status === 'downloading') {
-            refreshDownloadingPanel(tasks, panel.dom);
+            refreshProgressPanel(tasks, panel.dom);
         } else {
-            refreshNonDownloadingPanel(tasks, panel.dom, status);
+            refreshNonProgressPanel(tasks, panel.dom, status);
         }
     }
 }
 
-// 记录上一次下载数据用于计算速度
+// 记录上一次任务数据用于计算速度
 let lastTaskStats = {};
 
-function refreshDownloadingPanel(tasks, dom) {
+function refreshProgressPanel(tasks, dom) {
     dom.innerHTML = '';
     tasks.forEach(task => {
-        const progress = Math.floor((task.downloaded_bytes / task.total_bytes) * 100);
-        const humanReadable = `${formatBytes(task.downloaded_bytes)} / ${formatBytes(task.total_bytes)}`;
+        const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
+        const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
         let speedText = '计算中...';
         const now = Date.now();
         if (lastTaskStats[task.id]) {
             const last = lastTaskStats[task.id];
             const timeDiff = (now - last.time) / 1000;
             if (timeDiff > 0) {
-                const bytesDiff = task.downloaded_bytes - last.downloaded;
+                const bytesDiff = task.processed_bytes - last.processed;
                 speedText = formatBytes(bytesDiff / timeDiff) + '/s';
             }
         }
-        lastTaskStats[task.id] = { downloaded: task.downloaded_bytes, time: now };
+        lastTaskStats[task.id] = { processed: task.processed_bytes, time: now };
         const div = document.createElement('div');
         div.className = 'list-group-item';
         div.innerHTML = `
@@ -95,7 +176,7 @@ function refreshDownloadingPanel(tasks, dom) {
     dom.appendChild(getViewMoreButton('downloading'));
 }
 
-function refreshNonDownloadingPanel(tasks, dom, status) {
+function refreshNonProgressPanel(tasks, dom, status) {
     dom.innerHTML = '';
     tasks.forEach(task => {
         const div = document.createElement('div');
