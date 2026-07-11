@@ -315,8 +315,56 @@ document.addEventListener('click', function (event) {
 				deleteMap(actionEl.dataset.id);
 				break;
 			case 'batchUpdate':
+			case 'triggerUpdateAll':
+				triggerUpdateAll();
+				break;
+			case 'triggerCosSync':
+				triggerCosSync();
+				break;
 				batchUpdateMaps();
 				break;
 		}
 	}
 });
+/**
+ * 手动触发全量更新检查
+ */
+async function triggerUpdateAll() {
+	const statusEl = document.getElementById('trigger-status');
+	if (!statusEl) return;
+	statusEl.textContent = '⏳ 正在检查所有地图更新…';
+	try {
+		const res = await fetch('/api/map_manage.php?action=trigger_update_all');
+		const data = await res.json();
+		if (data.success) {
+			statusEl.textContent = '✅ ' + data.data.message;
+			// 刷新列表
+			const total = await getTotalMaps();
+			loadMapList(total, 1, 15, currentSort.field, currentSort.order);
+		} else {
+			statusEl.textContent = '❌ ' + (data.message || '未知错误');
+		}
+	} catch (err) {
+		statusEl.textContent = '❌ 请求失败: ' + err.message;
+	}
+}
+
+/**
+ * 手动触发 COS 同步（上传 + 索引页 + 孤儿清理）
+ */
+async function triggerCosSync() {
+	const statusEl = document.getElementById('trigger-status');
+	if (!statusEl) return;
+	statusEl.textContent = '⏳ 正在同步 COS（上传/索引/清理）…';
+	try {
+		const res = await fetch('/api/map_manage.php?action=trigger_cos_sync');
+		const data = await res.json();
+		if (data.success) {
+			statusEl.textContent = '✅ ' + data.data.message;
+		} else {
+			statusEl.textContent = '❌ ' + (data.message || '未知错误');
+		}
+	} catch (err) {
+		statusEl.textContent = '❌ 请求失败: ' + err.message;
+	}
+}

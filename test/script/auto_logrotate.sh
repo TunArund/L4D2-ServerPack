@@ -5,8 +5,8 @@ echo "[日志轮转]"
 
 # 当日日志路径
 Y=$(date +%Y); M=$(date +%m); D=$(date +%d)
-DAILY_LOG="web/data/logs/downloader_daemon/$Y/$M/${D}.log"
-LEGACY_LOG="web/data/logs/downloader_daemon.log"
+DAILY_LOG="web/data/logs/task_daemon/$Y/$M/${D}.log"
+LEGACY_LOG="web/data/logs/task_daemon.log"
 
 if [ -f "$DAILY_LOG" ]; then
     if [ -s "$DAILY_LOG" ]; then
@@ -26,4 +26,4 @@ fi
 # 目录结构
 echo ""
 check "轮转目录结构正确 (app/YYYY/MM/)" \
-  "test -d web/data/logs/downloader_daemon/$Y/$M"
+  "test -d web/data/logs/task_daemon/$Y/$M"

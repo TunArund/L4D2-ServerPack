@@ -13,4 +13,4 @@ if ! id -u "$D_UID" >/dev/null 2>&1; then
 fi
 
 exec setpriv --reuid="$D_UID" --regid="$D_GID" --init-groups \
-    php /var/www/html/downloader_daemon.php
+    php /var/www/html/task_daemon.php

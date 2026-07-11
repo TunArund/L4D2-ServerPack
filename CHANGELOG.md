@@ -1,5 +1,57 @@
 # CHANGELOG
 
+## 2026-07-11 — COS 目录浏览 + 任务守护重构 + 管理端手动触发
+
+### COS 静态网站文件浏览器
+
+- 新增 `static/html/cos_index.html` — JS 动态调用 ListBucket XML API，面包屑导航 + 目录展开
+- 配置通过 `{{COS_BUCKET}}` 等占位符在生成时从 `.env` 动态注入
+- 桶静态网站「默认首页」设为 `index.html`，访问 `http://map.tunarund.top/` 即可浏览全部文件
+- **⚠️ 自定义域名源站类型必须是「静态网站源站」**（非 CDN），否则 `/` 不重定向到 `index.html`
+
+### COS 控制台配置（必需）
+
+- **自定义域名** → 源站类型：静态网站源站 | **CORS** → Origin: `*`, Methods: `GET,HEAD` | **Bucket Policy** → 允许匿名 `GetBucket`
+
+### COS 逻辑收敛 + 孤儿清理
+
+- `cos_client.php` 新增 5 个函数：`cos_batch_upload` / `cos_delete_object` / `cos_build_index_html` / `cos_sync_index` / `cos_cleanup_orphans`
+- 每日维护自动清理桶中存在但 DB 中 `status != active` 的孤儿 .vpk 文件
+
+### `downloader_daemon.php` → `task_daemon.php`
+
+- 重命名（功能不限于下载），日志路径同步更新
+- daemon 不再直接 include `cos_client.php`，改为通过 `call_api()` 调 `map_manage.php?action=trigger_update_all|trigger_cos_sync`
+- downloader 容器移除 COS 环境变量和模板挂载，职责缩到下载 + HTTP 编排
+- COS 凭证转移到 PHP 容器（`trigger_cos_sync` 执行端）
+
+### 管理端手动触发按钮
+
+- `personal.php?tab=map_manage` 新增「检查更新」+「COS 同步」两个按钮
+- `map_manage.php` 新增 `trigger_update_all` / `trigger_cos_sync` action
+
+### 文件命名规范化
+
+- JS/HTML 文件名统一为下划线：`cos-index`→`cos_index`，`map-manage`→`map_manage`，`map-request`→`map_request`
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/src/static/html/cos_index.html` | 新增（模板，含 `{{...}}` 占位符） |
+| `web/src/static/js/custom/map_manage.js` | 重命名 + trigger 处理函数 |
+| `web/src/static/js/custom/map_request.js` | 重命名 |
+| `web/src/api/cos_client.php` | 重写（+5 函数，默认模板路径修正） |
+| `web/src/api/map_manage.php` | 修改（+trigger_update_all / trigger_cos_sync） |
+| `web/src/task_daemon.php` | 新增（纯 HTTP 编排） |
+| `web/src/downloader_daemon.php` | 删除 |
+| `web/src/personal.php` | 修改（手动触发按钮 + JS 引用更新） |
+| `docker-compose.yml` | 修改（php +COS 变量，downloader -COS/-模板挂载） |
+| `downloader/entrypoint.sh` | 修改（daemon 路径） |
+| `test/script/healthcheck.sh` | 修改（daemon 路径） |
+| `test/script/auto_logrotate.sh` | 修改（日志路径） |
+| `CHANGELOG.md` | 重写 |
+
 ## 2026-07-11 — 前端修复 + 下载器断点续传 + COS 签名修复
 
 ### jsdelivr CDN → 本地
@@ -58,13 +110,6 @@
 | `CHANGELOG.md` | 修改 |
 
 ## 2026-07-11 — Docker 网络加速 + HTTPS 开箱即用
-
-### nginx HTTPS 自签名证书
-
-- 生成自签名证书 `privkey.pem` / `fullchain.pem`（CN=`l4d2.tunarund.top`，10 年有效）
-- 用户 clone 后立即可用 TLS，防账号密码明文传输
-- 浏览器会提示"不受信任"（自签名通病），点继续即可；生产环境替换 Let's Encrypt 证书覆盖这两个文件
-- `.gitignore` 放开 `nginx/data/certs/*.pem` 允许提交
 
 ### Docker 基础设施优化
 

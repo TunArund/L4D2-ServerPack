@@ -211,7 +211,7 @@ function printMapRequest($isAdmin)
 				<button class="btn btn-primary mt-2" data-action="save_button">提交申请</button>
 			</div>
 			<div class="row" role="alert">
-				<button class="btn btn-info" href="https://steamcommunity.com/app/550/workshop/" target="_blank" rel="noopener">🎮 打开创意工坊</button>
+				<a class="btn btn-info" href="https://steamcommunity.com/app/550/workshop/" target="_blank" rel="noopener">🎮 打开创意工坊</a>
 				<small class="text-light mb-0">⚠️ 仅支持<strong>地图</strong>类型，无需材质 (Texture) / 音频 (Audio) 资源</small>
 			</div>
 			<!-- 显示申请列表表格 -->
@@ -237,13 +237,22 @@ function printMapRequest($isAdmin)
 					</table>
 			</form>
 			<nav id="map-request-pagination"></nav>
-			<script type="module" src="/static/js/custom/map-request.js"></script>
+			<script type="module" src="/static/js/custom/map_request.js"></script>
 	HTML;
 	echo $requests_tag;
 }
 function printMapManage()
 {
 	$card_tag = <<<HTML
+		<div class="mb-2 d-flex flex-wrap gap-2">
+			<button type="button" class="btn btn-outline-primary btn-sm" data-action="triggerUpdateAll">
+				<i class="bi bi-arrow-repeat me-1"></i>检查更新
+			</button>
+			<button type="button" class="btn btn-outline-info btn-sm" data-action="triggerCosSync">
+				<i class="bi bi-cloud-arrow-up me-1"></i>COS 同步
+			</button>
+			<span id="trigger-status" class="text-muted small align-self-center"></span>
+		</div>
 		<table class="table table-light table-hover text-nowrap">
 			<thead class="table-light">
 				<tr>
@@ -259,7 +268,7 @@ function printMapManage()
 			<tbody id="map-manage-body"> </tbody>
 		</table>
 		<nav id="map-manage-pagination"></nav>
-		<script type="module" src="/static/js/custom/map-manage.js"></script>
+		<script type="module" src="/static/js/custom/map_manage.js"></script>
 	HTML;
 	echo $card_tag;
 }

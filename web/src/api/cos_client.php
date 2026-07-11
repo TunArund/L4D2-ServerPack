@@ -32,6 +32,201 @@ function cos_configured(): bool {
 }
 
 /**
+ * 批量上传版本有变化的地图到 COS
+ *
+ * @return array ['uploaded' => int, 'skipped' => int, 'failed' => int]
+ */
+function cos_batch_upload(PDO $pdo): array {
+    $stmt = $pdo->query(
+        "SELECT id, disk_safe, version
+         FROM maps
+         WHERE status = 'active'
+           AND (cos_version IS NULL OR cos_version != version)"
+    );
+    $pending = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $uploaded = $skipped = $failed = 0;
+
+    foreach ($pending as $map) {
+        $local_path = MAP_DIR . $map['disk_safe'] . '.vpk';
+        $cos_key    = $map['disk_safe'] . '.vpk';
+
+        if (!file_exists($local_path)) {
+            $skipped++;
+            continue;
+        }
+
+        $res = cos_upload_file($local_path, $cos_key);
+        if ($res['success']) {
+            try {
+                $upd = $pdo->prepare("UPDATE maps SET cos_url = ?, cos_version = ? WHERE id = ?");
+                $upd->execute([$res['data']['url'], $map['version'], $map['id']]);
+            } catch (PDOException $e) {
+                // DB write failed but upload succeeded — non-fatal
+            }
+            $uploaded++;
+        } else {
+            $failed++;
+        }
+    }
+
+    return ['uploaded' => $uploaded, 'skipped' => $skipped, 'failed' => $failed];
+}
+
+/**
+ * 删除单个 COS 对象（DELETE Object）
+ *
+ * @param string $cos_key 对象键，如 "foo.vpk"
+ * @return array ['success' => bool, 'message' => string]
+ */
+function cos_delete_object(string $cos_key): array {
+    if (!cos_configured()) {
+        return array_error('COS 未配置');
+    }
+
+    if (strpos($cos_key, '/') !== 0) {
+        $cos_key = '/' . $cos_key;
+    }
+
+    $host = cos_host();
+    $url  = COS_SCHEME . '://' . $host . $cos_key;
+    $date = gmdate('D, d M Y H:i:s \G\M\T');
+
+    $auth = cos_generate_auth('DELETE', $cos_key, '', '', $date);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST  => 'DELETE',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER         => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => [
+            "Authorization: {$auth}",
+            "Date: {$date}",
+            "Host: {$host}",
+        ],
+    ]);
+
+    $response  = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err_msg   = curl_error($ch);
+    curl_close($ch);
+
+    if ($http_code >= 200 && $http_code < 300) {
+        return array_success(['key' => $cos_key, 'http' => $http_code]);
+    }
+
+    return array_error("DELETE {$cos_key}: HTTP {$http_code}" . ($err_msg ? " — {$err_msg}" : ''));
+}
+
+/**
+ * 从模板构建 index.html（替换 {{...}} 占位符）
+ *
+ * @param string $tpl_path 模板文件路径
+ * @return string HTML 内容
+ * @throws RuntimeException 模板文件不存在时
+ */
+function cos_build_index_html(string $tpl_path = '/var/www/html/static/html/cos_index.html'): string {
+    if (!file_exists($tpl_path)) {
+        throw new \RuntimeException("COS index template not found: {$tpl_path}");
+    }
+
+    $cdn_domain = COS_CUSTOM_DOMAIN !== '' ? rtrim(COS_CUSTOM_DOMAIN, '/') : '';
+    $api_base   = COS_SCHEME . '://' . cos_host();
+    $cdn_base   = $cdn_domain ?: $api_base;
+    $page_title = $cdn_domain ? preg_replace('#^https?://#', '', $cdn_domain) : cos_host();
+
+    $tpl = file_get_contents($tpl_path);
+    return str_replace(
+        ['{{COS_BUCKET}}', '{{COS_REGION}}', '{{COS_API_BASE}}', '{{COS_CDN_BASE}}', '{{COS_PAGE_TITLE}}'],
+        [COS_BUCKET, COS_REGION, $api_base, $cdn_base, $page_title],
+        $tpl
+    );
+}
+
+/**
+ * 构建并上传 index.html 到 COS 桶根
+ *
+ * @param string $tpl_path 模板文件路径
+ * @return array ['success' => bool, 'message' => string]
+ */
+function cos_sync_index(string $tpl_path = '/var/www/html/static/html/cos_index.html'): array {
+    if (!cos_configured()) {
+        return array_error('COS 未配置');
+    }
+
+    try {
+        $html = cos_build_index_html($tpl_path);
+    } catch (\RuntimeException $e) {
+        return array_error($e->getMessage());
+    }
+
+    $tmp = tempnam(sys_get_temp_dir(), 'cosidx');
+    file_put_contents($tmp, $html);
+    $res = cos_upload_file($tmp, '/index.html', 'text/html; charset=utf-8', 2);
+    unlink($tmp);
+
+    return $res;
+}
+
+/**
+ * 清理 COS 中无对应活跃地图的孤儿 .vpk 文件
+ *
+ * 获取所有 active 地图的文件名 → 列出 COS 中所有 .vpk → 删除不在 active 集合中的。
+ * 跳过 index.html（目录浏览页本身）。
+ *
+ * @return array ['deleted' => int, 'failed' => int, 'keys' => string[]]
+ */
+function cos_cleanup_orphans(PDO $pdo): array {
+    if (!cos_configured()) {
+        return ['deleted' => 0, 'failed' => 0, 'keys' => []];
+    }
+
+    // 1. 获取所有 active 地图的 COS key
+    $stmt = $pdo->query("SELECT disk_safe FROM maps WHERE status = 'active'");
+    $active = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $active[$row['disk_safe'] . '.vpk'] = true;
+    }
+
+    // 2. 列出 COS 中所有 .vpk 文件
+    $list = cos_list_objects('', '', 1000);
+    if (!$list['success']) {
+        return ['deleted' => 0, 'failed' => 0, 'keys' => []];
+    }
+
+    $deleted = 0;
+    $failed  = 0;
+    $keys    = [];
+
+    foreach ($list['data']['files'] as $file) {
+        $key = $file['key'];
+
+        // 跳过 index.html 和非 .vpk 文件
+        if ($key === 'index.html' || !preg_match('/\.vpk$/i', $key)) {
+            continue;
+        }
+
+        // 跳过仍有活跃地图对应的文件
+        $basename = basename($key);
+        if (isset($active[$basename])) {
+            continue;
+        }
+
+        $res = cos_delete_object($key);
+        if ($res['success']) {
+            $deleted++;
+            $keys[] = $key;
+        } else {
+            $failed++;
+        }
+    }
+
+    return ['deleted' => $deleted, 'failed' => $failed, 'keys' => $keys];
+}
+
+/**
  * 构建 COS Host
  */
 function cos_host(): string {
