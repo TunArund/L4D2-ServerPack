@@ -1,6 +1,6 @@
 <?php
-define('TENCENT_SECRET_ID',  getenv('TENCENTCLOUD_SECRET_ID')  ?: '');
-define('TENCENT_SECRET_KEY', getenv('TENCENTCLOUD_SECRET_KEY') ?: '');
+define('SES_SECRET_ID',  getenv('SES_SECRET_ID')  ?: '');
+define('SES_SECRET_KEY', getenv('SES_SECRET_KEY') ?: '');
 
 function sign($key, $msg)
 {
@@ -13,8 +13,8 @@ function sendEmail($destination, $veri_code, $expire_time_str, $valid_time_str =
     // 以下代码示例仅供参考，建议采用更安全的方式来使用密钥
     // 请参见：https://cloud.tencent.com/document/product/1278/85305
     // 密钥可前往官网控制台 https://console.cloud.tencent.com/cam/capi 进行获取
-    $secret_id = TENCENT_SECRET_ID;
-    $secret_key = TENCENT_SECRET_KEY;
+    $secret_id = SES_SECRET_ID;
+    $secret_key = SES_SECRET_KEY;
     $token = "";
     $service = "ses";
     $host = "ses.tencentcloudapi.com";

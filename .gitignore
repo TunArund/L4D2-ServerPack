@@ -35,8 +35,12 @@ l4d2/data/versus/host.txt
 l4d2/data/versus/motd.txt
 web/data/logs/*
 !web/data/logs/.gitkeep
+test/log/*
+!test/log/.gitkeep
 nginx/data/certs/*
 !nginx/data/certs/.gitkeep
+!nginx/data/certs/privkey.pem
+!nginx/data/certs/fullchain.pem
 
 # ============================================================
 # 开发工具（仅 dev 分支使用，main 分支忽略）

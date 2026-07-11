@@ -99,13 +99,18 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 	$err_msg = '';
 	$http_code = 0;
 
+	// 检查是否存在未完成的文件，用于断点续传
+	$resume_from = (file_exists($save_path) && ($sz = filesize($save_path)) > 0) ? $sz : 0;
+	if ($resume_from > 0) {
+		fwrite($log_fp, date('Y-m-d H:i:s') . " 发现未完成文件，大小 {$resume_from} 字节，将从断点续传\n");
+	}
+
 	while ($attempt < $max_retries && !$success) {
 		$attempt++;
 
-		// 重试时删除部分文件 + 加随机参数绕过 CDN 缓存获取新节点
+		// 重试时加随机参数绕过 CDN 缓存获取新节点
 		$url = $base_url;
 		if ($attempt > 1) {
-			if (file_exists($save_path)) unlink($save_path);
 			$url .= (strpos($url, '?') === false ? '?' : '&') . '_r=' . mt_rand();
 		}
 
@@ -115,7 +120,18 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 			return array_error("无法初始化curl");
 		}
 
-		$fp = fopen($save_path, 'wb');
+		// 断点续传：有未完成文件则追加写入，否则新建
+		if ($resume_from > 0) {
+			$fp = fopen($save_path, 'ab');
+			curl_setopt($ch, CURLOPT_RESUME_FROM, $resume_from);
+		} else {
+			$fp = fopen($save_path, 'wb');
+		}
+		if (!$fp) {
+			curl_close($ch);
+			fclose($log_fp);
+			return array_error("无法打开文件: $save_path");
+		}
 
 		curl_setopt($ch, CURLOPT_FILE, $fp);
 		curl_setopt($ch, CURLOPT_STDERR, $log_fp);
@@ -124,28 +140,31 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 0);
 		curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 10240);
-		curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 15);   // 15s 低速即中断（原 30s）
+		curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 15);   // 15s 低速即中断
 
 		// 进度回调
 		$lastUpdate = 0;
 		$task_id = $task['id'];
+		$offset = $resume_from;  // 闭包捕获当前偏移量
 		curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function (
 			$resource,
 			float $download_size,
 			float $downloaded,
 			float $upload_size,
 			float $uploaded
-		) use ($task_id, $pdo, &$lastUpdate) {
+		) use ($task_id, $pdo, &$lastUpdate, $offset) {
 			$now = microtime(true);
 			if ($download_size <= 0 || ($now - $lastUpdate) <= 1) return;
 			$lastUpdate = $now;
+			// CURLOPT_RESUME_FROM 模式下 $downloaded 不含偏移量，手动加上
+			$actual = $offset + (int)$downloaded;
 			$stmt = $pdo->prepare("UPDATE download_tasks SET
 			downloaded_bytes = ?, total_bytes = ?, updated_at = NOW() WHERE id = ?
 			");
 			try {
 				$stmt->execute([
-					(int)$downloaded,
-					(int)$download_size,
+					$actual,
+					$offset + (int)$download_size,
 					$task_id
 				]);
 			} catch (PDOException $e) {
@@ -156,18 +175,44 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 		$success = curl_exec($ch);
 		$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		$err_msg = curl_error($ch);
+		curl_close($ch);
 
 		if (is_resource($fp)) {
 			fclose($fp);
 		}
 
-		if ($success && ($http_code == 200 || $http_code == 206)) {
+		// 206 Partial Content — 断点续传成功
+		// 200 OK           — 全新下载成功
+		if ($success && $http_code == 206) {
+			fclose($log_fp);
+			return array_success("下载成功（续传 {$resume_from} 字节，第 $attempt 次尝试）");
+		}
+		if ($success && $http_code == 200) {
+			if ($resume_from > 0) {
+				// 服务器不支持 Range，返回了完整文件而非续传
+				// 当前文件已损坏（旧片段 + 完整文件拼在一起），需从头开始
+				fwrite($log_fp, date('Y-m-d H:i:s') . " 服务器不支持断点续传（返回 200 而非 206），"
+					. "丢弃已下载片段，重新下载\n");
+				unlink($save_path);
+				$resume_from = 0;
+				$success = false;
+				// 不计入重试次数，立即重新尝试
+				$attempt--;
+				continue;
+			}
 			fclose($log_fp);
 			return array_success("下载成功（第 $attempt 次尝试）");
 		}
 
+		// 失败后更新续传偏移量（保留已下载的部分，下次重试继续）
+		if (file_exists($save_path)) {
+			$resume_from = filesize($save_path);
+		}
+
 		$success = false;
 		if ($attempt < $max_retries) {
+			fwrite($log_fp, date('Y-m-d H:i:s') . " 第 {$attempt} 次尝试失败 (HTTP {$http_code})，"
+				. "已保留 {$resume_from} 字节，{$max_retries}秒后重试...\n");
 			sleep(min($attempt * 2, 10)); // 递增退避: 2s → 4s → 6s → 8s → 10s
 		}
 	}

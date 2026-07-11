@@ -61,10 +61,19 @@ function save_button(urlInput) {
 			const actions = tempRow.querySelector('[name="actions"]');
 			actions.innerHTML = '';
 			const deleteButton = document.createElement('button');
-			deleteButton.classList.add('btn', 'btn-sm', 'btn-danger', 'me-1');
+			deleteButton.type = 'button';
+		deleteButton.classList.add('btn', 'btn-sm', 'btn-danger', 'mr-1');
+			deleteButton.setAttribute('data-action', 'delete');
 			deleteButton.textContent = '删除';
-			deleteButton.addEventListener('click', delete_request);
 			actions.appendChild(deleteButton);
+			if (row.status === 'pending') {
+				const approveButton = document.createElement('button');
+				approveButton.type = 'button';
+			approveButton.classList.add('btn', 'btn-sm', 'btn-success');
+				approveButton.setAttribute('data-action', 'approve');
+				approveButton.textContent = '批准';
+				actions.appendChild(approveButton);
+			}
 			tempRow.querySelector('[name="explaination"]').textContent = row.explaination || '-';
 		})
 		.catch(err => {
@@ -132,10 +141,10 @@ async function loadMapRequests(total,page=1,page_size=16,order_by='id',order='DE
 				const tdAction = document.createElement("td");
 				tdAction.setAttribute("name", "actions");
 				let ActionStr = `
-				<button data-action="delete" class="btn btn-sm btn-danger me-1">删除</button>
+				<button type="button" data-action="delete" class="btn btn-sm btn-danger me-1">删除</button>
 				`;
 				if(row.status == 'pending') ActionStr += `
-				<button data-action="approve" class="btn btn-sm btn-success me-1">批准</button>
+				<button type="button" data-action="approve" class="btn btn-sm btn-success me-1">批准</button>
 				`;
 				tdAction.innerHTML = ActionStr;
 				tr.appendChild(tdAction);

@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/TunArund/L4D2-ServerPack.git l4d2-server && cd l4d2-server
+git clone --depth=1 https://github.com/TunArund/L4D2-ServerPack.git && cd L4D2-ServerPack
 cp .env.example .env            # 填入密码 + SIDECAR_TOKEN
 ./l4d2.sh install               # steamcmd 下载游戏 (~9GB)
 ./docker.sh install             # 自动安装 Docker (已装则跳过)
@@ -69,7 +69,9 @@ graph TB
 
 核心设计：
 - **请求路由**：nginx 根据路径将请求分发到 php-fpm (`/`, `/api/*`)、sidecar (`/manage`)、glances (`/monitor-api`)，静态资源直接返回。
-- **地图下载**：用户通过 Web 面板提交下载请求 → php 写入 `download_tasks` 表 → downloader 每 5 秒轮询 → wget 下载 vpk 到 addons 共享卷 → l4d2 直接读取。
+- **地图下载**：用户通过 Web 面板提交下载请求 → php 写入 `download_tasks` 表 → downloader 每 5 秒轮询 → curl 从 Steam CDN 下载 vpk 到 addons 共享卷 → l4d2 直接读取。每日凌晨 3 点自动将 active 地图上传至腾讯 COS，用户可通过 CDN 直链下载。
+- **日志轮转**：`add_log()` 内置按日轮转，目录结构 `{应用名}/YYYY/MM/DD.log`，零外部依赖。
+- **测试体系**：`./test.sh` 统一测试入口 — `./test.sh all` 自动化 + 人工引导全覆盖，`./test.sh healthcheck` 快速探活。
 - **容器管理**：sidecar 挂载 `docker.sock`，通过白名单控制可查看/可重启的容器，Token 认证。
 - **监控**：Glances 仅暴露 REST API（`--disable-webui`），前端 Chart.js 渲染，资源占用 ~50MB。
 
@@ -177,12 +179,16 @@ l4d2/data/versus/                 ← 对抗服专用数据（不进 Git）
 | `REGISTRY` | 全部 | 镜像前缀。开发留空，生产设 `ghcr.io/<user>/` |
 | `MYSQL_ROOT_PASSWORD` | mysql | root 密码 |
 | `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD` | mysql, php, dl | 数据库 |
-| `UID` / `GID` | php, dl, l4d2 | **必须与游戏文件 owner 一致** |
+| `APP_UID` / `APP_GID` | php, dl, l4d2 | **必须与游戏文件 owner 一致** |
 | `GAME_DIR` | l4d2 | 游戏文件目录（默认 `./l4d2/src`） |
-| `SIDECAR_TOKEN` | php, sidecar | API 令牌（空 = 跳过认证） |
+| `SIDECAR_TOKEN` | php, sidecar, downloader | API 令牌（空 = 跳过认证）；downloader 用于每日更新内部调用 |
 | `ALLOWED_CONTAINERS` / `RESTARTABLE_CONTAINERS` | sidecar | 容器管理白名单 |
 | `L4D2_COOP_ARGS` / `L4D2_VERSUS_ARGS` | l4d2 | srcds 启动参数 |
-| `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY` | php | 腾讯云 SES 邮件 |
+| `SES_SECRET_ID` / `SES_SECRET_KEY` | php | 腾讯云 SES 邮件 |
+| `COS_SECRET_ID` / `COS_SECRET_KEY` | downloader | 腾讯云 COS API 密钥 |
+| `COS_BUCKET` | downloader | COS 存储桶名称（含 APPID） |
+| `COS_REGION` | downloader | 存储桶地域，默认 `ap-guangzhou` |
+| `COS_CUSTOM_DOMAIN` | downloader | 可选：CDN 加速域名，设置后 COS URL 使用该域名 |
 | `GITHUB_USER` / `GITHUB_TOKEN` | docker.sh | ghcr.io 推送凭据 |
 
 ---
@@ -195,7 +201,8 @@ l4d2-server/
 ├── .env.example
 ├── docker.sh                   # Docker 管理 (install/build/up/down/push/logs…)
 ├── l4d2.sh                     # steamcmd 下载/更新游戏
-├── healthcheck.sh
+├── test.sh                     # 测试入口 (healthcheck + auto + manual)
+├── CHANGELOG.md                 # 更新日志
 │
 ├── base-php/                   # PHP 基础镜像（预编译 gd/mysqli/pdo/pcntl）
 ├── web/                        # PHP 应用 (FROM base-php-fpm)
@@ -208,6 +215,9 @@ l4d2-server/
 ├── mysql/
 │   ├── data/                   # 数据持久化
 │   └── initdb/                 # 初始化 SQL
+├── test/
+│   ├── script/                  # 测试脚本 (healthcheck + auto_* + manual_web)
+│   └── log/                     # 测试日志 (Git 忽略)
 └── .env                        # (Git 忽略)
 ```
 
@@ -255,6 +265,7 @@ https://github.com/KevonLin/l4d2-docker-zonemod
 
 | 问题 | 说明 |
 |------|------|
+|docker镜像拉取超时|docker hub境内访问受限，解决办法参考https://github.com/dongyubin/DockerHub|
 | UID/GID 不匹配 | `UID`/`GID` 需与 `l4d2/src/` owner 一致，否则 SourceMod Permission denied |
 | steamcmd 下载慢 | 首次 ~9.3GB，可在网络好的机器下载后 scp 到服务器 |
 | 挂载目录删不掉 | 这些目录由容器 UID 写入，宿主用户无权删除。用 Docker 指令操作：`docker compose down -v` 删 volumes，或 `docker run --rm -v $(pwd):/mnt alpine rm -rf /mnt/<目录>` |

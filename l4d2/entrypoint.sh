@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# 按传入的 UID/GID（默认 1000）动态创建运行用户
-STEAM_UID="${UID:-1000}"
-STEAM_GID="${GID:-1000}"
+# 按传入的 APP_UID/APP_GID（默认 1000）动态创建运行用户
+STEAM_UID="${APP_UID:-1000}"
+STEAM_GID="${APP_GID:-1000}"
 
 # 如果组不存在则创建
 if ! getent group "$STEAM_GID" >/dev/null; then

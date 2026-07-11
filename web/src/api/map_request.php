@@ -202,20 +202,22 @@ function delete_all_request($pdo, $steam_id){
 function delete_request($pdo, $is_admin, $user_id, $request_id)
 {
 	try { //尝试数据库操作
-		//删除绑定关系
 		if ($is_admin) {
+			// 先清理绑定关系，再删请求
+			$stmt = $pdo->prepare("DELETE FROM map_request_users WHERE request_id = ?");
+			$stmt->execute([$request_id]);
 			$stmt = $pdo->prepare("DELETE FROM map_requests WHERE id = ?");
 			$stmt->execute([$request_id]);
 		} else {
 			$stmt = $pdo->prepare("DELETE FROM map_request_users WHERE request_id = ? AND user_id = ?");
 			$stmt->execute([$request_id, $user_id]);
-		}
-		$stmt = $pdo->prepare("SELECT COUNT(*) FROM map_request_users WHERE request_id = ?");
-		$stmt->execute([$request_id]);
-		//如果删除后无绑定关系，则删除对应申请
-		if ($stmt->fetch() == 0) {
-			$stmt = $pdo->prepare("DELETE FROM map_requests WHERE id = ?");
+			// 无绑定关系则删除对应申请
+			$stmt = $pdo->prepare("SELECT COUNT(*) FROM map_request_users WHERE request_id = ?");
 			$stmt->execute([$request_id]);
+			if ($stmt->fetchColumn() == 0) {
+				$stmt = $pdo->prepare("DELETE FROM map_requests WHERE id = ?");
+				$stmt->execute([$request_id]);
+			}
 		}
 	} catch (PDOException $e) { //捕获数据库操作异常
 		return array_error($e->getMessage());

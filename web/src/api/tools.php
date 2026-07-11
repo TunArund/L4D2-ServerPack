@@ -21,8 +21,8 @@ function check_disk_capacity($size_bytes) {
 }
 
 /**
- * 日志记录
- * @param string $log_file 日志文件路径
+ * 日志记录（自动按日轮转，目录格式: {base}/YYYY/MM/DD_{filename}）
+ * @param string $log_file 日志文件基路径
  * @param string $msg 日志内容
  * @param int $level 日志级别 0为debug，1为info，2为warning，3为error
  */
@@ -30,7 +30,27 @@ function add_log($log_file, int $level=1, $msg=''){
   $timestamp = date('Y-m-d H:i:s');
   $level_str = ['DEBUG', 'INFO', 'WARNING', 'ERROR'][$level];
   $content = "[{$timestamp}] [{$level_str}] {$msg}";
-  file_put_contents($log_file, $content . "\n", FILE_APPEND);
+  $daily = daily_log_path($log_file);
+  file_put_contents($daily, $content . "\n", FILE_APPEND);
+}
+
+/**
+ * 根据基路径生成按日轮转的日志文件路径
+ *
+ * 目录结构: {应用名}/{年}/{月}/{日}.log
+ * 例如 /var/log/daemon.log → /var/log/daemon/2026/07/10.log
+ *
+ * @param string $base_path 日志基路径
+ * @return string 轮转后的实际文件路径
+ */
+function daily_log_path(string $base_path): string {
+    $dir  = dirname($base_path);
+    $name = basename($base_path, '.log');           // 去掉 .log 后缀作目录名
+    $date_dir = $dir . '/' . $name . '/' . date('Y') . '/' . date('m');
+    if (!is_dir($date_dir)) {
+        mkdir($date_dir, 0755, true);
+    }
+    return $date_dir . '/' . date('d') . '.log';
 }
 function check_login(){
   // 本地访问直接通过

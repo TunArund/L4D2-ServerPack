@@ -63,14 +63,23 @@ https://download.docker.com/linux/${distro,,} $(. /etc/os-release && echo "$VERS
         echo "  [注意] 已加入 docker 组，需执行 newgrp docker 或重新登录"
     fi
 
-    # 配置国内镜像加速
+    # 配置国内镜像加速（仅保留已验证可用的源）
     if [[ ! -f /etc/docker/daemon.json ]]; then
         sudo tee /etc/docker/daemon.json <<'DAEMON'
 {
   "registry-mirrors": [
     "https://docker.1ms.run",
-    "https://docker.xuanyuan.me"
-  ]
+    "https://docker.m.daocloud.io",
+    "https://dockerproxy.link",
+    "https://free.hubfast.cn",
+    "https://proxy.vvvv.ee",
+    "https://docker.jiaxin.site",
+    "https://docker.xuanyuan.me",
+    "https://registry.cyou",
+    "https://cf-workers-docker-io-apl.pages.dev"
+  ],
+  "max-concurrent-downloads": 10,
+  "max-concurrent-uploads": 5
 }
 DAEMON
         sudo systemctl restart docker
@@ -117,13 +126,42 @@ cmd_build() {
     local registry="${REGISTRY:-$(_get_env REGISTRY)}"
     echo ">>> 本地构建 (REGISTRY=${registry:-空}) ..."
 
-    # 先构建基础镜像（服务 FROM 依赖，BuildKit 并行解析需要本地已有）
-    echo "  [1/2] 基础镜像 (--no-cache) ..."
-    REGISTRY="$registry" docker compose build --no-cache base-php-fpm base-php-cli
+    # 动态发现外部基础镜像（仅扫描项目子目录，排除 mysql/data 等数据目录）
+    echo "  [0/3] 预拉取基础镜像 ..."
+    local base_images=()
+    while IFS= read -r img; do
+        [[ -n "$img" ]] && base_images+=("$img")
+    done < <(find "$SCRIPT_DIR" -maxdepth 2 -name "Dockerfile*" -exec grep -h '^FROM ' {} \; \
+        | sed 's/^FROM //' \
+        | sed 's/[[:space:]]*[aA][sS] .*//' \
+        | grep -v 'REGISTRY' \
+        | grep -v '^\$' \
+        | grep -v '^${' \
+        | sort -u)
 
-    # 再构建服务镜像
-    echo "  [2/2] 服务镜像 ..."
-    REGISTRY="$registry" docker compose build l4d2 nginx php downloader sidecar
+    local pull_failed=()
+    if [[ ${#base_images[@]} -gt 0 ]]; then
+        for img in "${base_images[@]}"; do
+            echo "  [pull] $img"
+            if docker pull "$img"; then
+                echo "         ✓"
+            else
+                echo "         ✗ (build 时重试)"
+                pull_failed+=("$img")
+            fi
+        done
+        [[ ${#pull_failed[@]} -gt 0 ]] && echo "  [注意] ${#pull_failed[@]} 个镜像预拉取失败: ${pull_failed[*]}"
+    else
+        echo "    (未发现外部基础镜像，跳过)"
+    fi
+
+    # 构建所有带 build 上下文的服务（BuildKit 自动按依赖顺序）
+    echo "  [1/2] 构建镜像 ..."
+    REGISTRY="$registry" docker compose build
+
+    # 拉取仅有 image 的服务 (mysql, glances 等)
+    echo "  [2/2] 拉取外部服务镜像 ..."
+    docker compose pull 2>/dev/null || true
 
     echo ">>> 构建完成，执行 ./docker.sh up 启动"
 }
@@ -177,29 +215,37 @@ cmd_push() {
     _ghcr_login "$user" "$token"
 
     echo ""
-    echo ">>> 构建基础镜像 ..."
-    REGISTRY="$registry" docker compose build --no-cache base-php-fpm base-php-cli
+    echo ">>> 构建镜像 (--no-cache, 确保生产可用) ..."
+    REGISTRY="$registry" docker compose build --no-cache
 
+    # 从 docker-compose.yml 动态发现要推送的镜像（仅推送自有仓库镜像）
     echo ""
-    echo ">>> 构建服务镜像 ..."
-    REGISTRY="$registry" docker compose build l4d2 nginx php downloader sidecar
+    echo ">>> 发现推送目标 ..."
+    local push_images=()
+    while IFS= read -r img; do
+        [[ -n "$img" ]] && push_images+=("$img")
+    done < <(REGISTRY="$registry" docker compose config 2>/dev/null \
+        | grep 'image:' \
+        | sed 's/.*image:[[:space:]]*//' \
+        | grep "^${registry}" \
+        | sort -u)
 
-    # 推送清单
-    local all_images=(
-        "l4d2-base-php-fpm"
-        "l4d2-base-php-cli"
-        "l4d2-server-game"
-        "l4d2-nginx"
-        "l4d2-php"
-        "l4d2-downloader"
-        "l4d2-sidecar"
-    )
+    if [[ ${#push_images[@]} -eq 0 ]]; then
+        echo "错误: 未发现需要推送的镜像"
+        exit 1
+    fi
 
-    echo ""
-    echo ">>> 推送到 $registry ..."
-    for img in "${all_images[@]}"; do
-        echo "  $registry$img:$version"
-        docker push "$registry$img:$version"
+    echo ">>> 推送 (${#push_images[@]} 个镜像) ..."
+    for img in "${push_images[@]}"; do
+        local tag="${img}"
+        # 版本覆盖：docker-compose 中 tag 通常为 latest，如需推送其他 tag 则重新打标
+        local img_base="${img%:*}"
+        if [[ "$version" != "${img##*:}" ]]; then
+            docker tag "$img" "$img_base:$version"
+            tag="$img_base:$version"
+        fi
+        echo "  $tag"
+        docker push "$tag"
     done
 
     echo ""
@@ -210,8 +256,6 @@ cmd_push() {
     echo "设为公开:"
     echo "  https://github.com/TunArund/L4D2-ServerPack/pkgs/container/l4d2-server-game"
     echo "  → Package Settings → Change visibility → Public"
-    echo ""
-    echo "公开后拉取: docker pull ghcr.io/tunarund/l4d2-server-game:latest"
 }
 
 cmd_clean() {
