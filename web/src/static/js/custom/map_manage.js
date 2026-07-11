@@ -350,17 +350,17 @@ async function triggerUpdateAll() {
 }
 
 /**
- * 手动触发 COS 同步（上传 + 索引页 + 孤儿清理）
+ * 手动触发 COS 同步（写入触发文件，由 task-daemon 在下次轮询时执行）
  */
 async function triggerCosSync() {
 	const statusEl = document.getElementById('trigger-status');
 	if (!statusEl) return;
-	statusEl.textContent = '⏳ 正在同步 COS（上传/索引/清理）…';
+	statusEl.textContent = '⏳ 正在加入同步队列…';
 	try {
 		const res = await fetch('/api/map_manage.php?action=trigger_cos_sync');
 		const data = await res.json();
 		if (data.success) {
-			statusEl.textContent = '✅ ' + data.data.message;
+			statusEl.textContent = '📨 ' + data.data.message;
 		} else {
 			statusEl.textContent = '❌ ' + (data.message || '未知错误');
 		}

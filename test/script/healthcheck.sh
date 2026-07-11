@@ -68,13 +68,13 @@ done
 
 echo ""
 echo "[下载器]"
-check "downloader 容器运行中" 'test -n "$(docker compose ps downloader -q 2>/dev/null)"'
-check "task_daemon.php 语法" 'docker compose exec -T downloader php -l /var/www/html/task_daemon.php'
-check "cos_client.php 语法"       'docker compose exec -T downloader php -l /var/www/html/api/cos_client.php'
+check "task-daemon 容器运行中" 'test -n "$(docker compose ps task-daemon -q 2>/dev/null)"'
+check "task_daemon.php 语法" 'docker compose exec -T task-daemon php -l /var/www/html/task_daemon.php'
+check "cos_client.php 语法"       'docker compose exec -T task-daemon php -l /var/www/html/api/cos_client.php'
 check "map_manage.php 语法"       'docker compose exec -T php php -l /var/www/html/api/map_manage.php'
 check "map_info.php 语法"         'docker compose exec -T php php -l /var/www/html/map_info.php'
 
-COS_LOAD=$(docker compose exec -T downloader php -r '
+COS_LOAD=$(docker compose exec -T task-daemon php -r '
 include_once "/var/www/html/api/tools.php";
 include_once "/var/www/html/api/cos_client.php";
 echo function_exists("cos_configured") ? "OK" : "FAIL";
@@ -85,7 +85,7 @@ else
     echo -e "  \033[0;31m✗\033[0m cos_client 函数加载失败"
 fi
 
-COS_CFG=$(docker compose exec -T downloader php -r '
+COS_CFG=$(docker compose exec -T task-daemon php -r '
 include_once "/var/www/html/api/tools.php";
 include_once "/var/www/html/api/cos_client.php";
 echo cos_configured() ? "configured" : "not_configured";

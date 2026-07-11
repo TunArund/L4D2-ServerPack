@@ -10,5 +10,5 @@ RUN if [ -n "$APK_MIRROR" ]; then \
 RUN apk add --no-cache docker-cli
 
 EXPOSE 8080
-ENV ALLOWED_CONTAINERS="l4d2-downloader,l4d2-coop,l4d2-versus,l4d2-php,l4d2-mysql,l4d2-glances,l4d2-nginx"
+ENV ALLOWED_CONTAINERS="l4d2-task-daemon,l4d2-coop,l4d2-versus,l4d2-php,l4d2-mysql,l4d2-glances,l4d2-nginx"
 CMD ["php", "-S", "0.0.0.0:8080", "/server.php"]

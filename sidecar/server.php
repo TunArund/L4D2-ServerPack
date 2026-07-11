@@ -15,11 +15,11 @@
 // RESTARTABLE_CONTAINERS — 允许重启的容器（应为 ALLOWED 的子集）
 $allowed = array_filter(array_map('trim', explode(',', getenv('ALLOWED_CONTAINERS') ?: '')));
 if (!$allowed) {
-    $allowed = ['l4d2-downloader', 'l4d2-coop', 'l4d2-versus', 'l4d2-php', 'l4d2-mysql', 'l4d2-glances', 'l4d2-nginx'];
+    $allowed = ['l4d2-task-daemon', 'l4d2-coop', 'l4d2-versus', 'l4d2-php', 'l4d2-mysql', 'l4d2-glances', 'l4d2-nginx'];
 }
 $restartable = array_filter(array_map('trim', explode(',', getenv('RESTARTABLE_CONTAINERS') ?: '')));
 if (!$restartable) {
-    $restartable = ['l4d2-downloader', 'l4d2-coop', 'l4d2-versus'];
+    $restartable = ['l4d2-task-daemon', 'l4d2-coop', 'l4d2-versus'];
 }
 
 // ---- 认证 ----

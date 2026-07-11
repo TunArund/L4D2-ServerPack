@@ -10,6 +10,7 @@ gc_enable();
 
 include_once 'api/downloader.php';
 include_once 'api/tools.php';
+include_once 'api/cos_client.php';
 
 // ============================================================
 // 运行时配置
@@ -107,18 +108,65 @@ function daily_maintenance(string $web_host, string $token, int $update_hour, st
         add_log(DAEMON_LOG, 2, 'Daily update failed: ' . ($result['message'] ?? 'unknown'));
     }
 
-    // ---- 2. COS 同步（复用 map_manage.php?action=trigger_cos_sync） ----
+    // ---- 2. COS 同步（本地直接执行，不经过 HTTP API） ----
     add_log(DAEMON_LOG, 1, '=== COS sync ===');
 
-    $result = call_api($web_host, $token, 'trigger_cos_sync');
+    $result = run_cos_sync($pdo);
 
-    if ($result === null) {
-        add_log(DAEMON_LOG, 3, "COS sync API unreachable: {$web_host}");
-    } elseif (!empty($result['success'])) {
+    if ($result['success']) {
         add_log(DAEMON_LOG, 1, 'COS sync done: ' . ($result['data']['message'] ?? 'OK'));
     } else {
         add_log(DAEMON_LOG, 2, 'COS sync failed: ' . ($result['message'] ?? 'unknown'));
     }
+}
+
+/**
+ * 执行 COS 同步（上传 + 索引页 + 孤儿清理）
+ *
+ * @return array ['success' => bool, 'data' => [...]]
+ */
+function run_cos_sync(PDO $pdo): array {
+    if (!cos_configured()) {
+        return ['success' => false, 'message' => 'COS 未配置'];
+    }
+
+    $upload  = cos_batch_upload($pdo);
+    $index   = cos_sync_index();
+    $cleanup = cos_cleanup_orphans($pdo);
+
+    return [
+        'success' => true,
+        'data'    => [
+            'message' => "COS 同步完成：上传 {$upload['uploaded']} 跳过 {$upload['skipped']} 失败 {$upload['failed']} | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个",
+            'upload'  => $upload,
+            'index'   => $index,
+            'cleanup' => $cleanup,
+        ],
+    ];
+}
+
+/**
+ * 检查手动触发文件，存在则执行 COS 同步
+ *
+ * 触发文件位于 LOG_DIR 根，由 Web API 写入，daemon 处理完后删除。
+ */
+function process_manual_triggers(PDO $pdo): void {
+    $trigger_file = LOG_DIR . '.trigger_cos_sync';
+
+    if (!file_exists($trigger_file)) {
+        return;
+    }
+
+    add_log(DAEMON_LOG, 1, '=== Manual COS sync triggered ===');
+    $result = run_cos_sync($pdo);
+
+    if ($result['success']) {
+        add_log(DAEMON_LOG, 1, 'Manual COS sync done: ' . ($result['data']['message'] ?? 'OK'));
+    } else {
+        add_log(DAEMON_LOG, 2, 'Manual COS sync failed: ' . ($result['message'] ?? 'unknown'));
+    }
+
+    @unlink($trigger_file);
 }
 
 /**
@@ -155,6 +203,7 @@ add_log(DAEMON_LOG, 1, '=== Task daemon started ===');
 while ($running) {
     ensure_db_alive($pdo, $interval);
     daily_maintenance($web_host, $sider_token, $update_hour, $update_mark);
+    process_manual_triggers($pdo);
 
     if (!process_next_download_task($pdo, $file_dir, $daily_log)) {
         sleep($interval);

@@ -15,7 +15,7 @@ if [ -f "$DAILY_LOG" ]; then
         warn "当日轮转日志为空: $DAILY_LOG（daemon 可能刚启动）"
     fi
 else
-    warn "当日轮转日志不存在: $DAILY_LOG（检查 downloader 是否正常运行）"
+    warn "当日轮转日志不存在: $DAILY_LOG（检查 task-daemon 是否正常运行）"
 fi
 
 # 旧格式日志应该不再增长（已迁移到轮转）
