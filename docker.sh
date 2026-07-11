@@ -159,17 +159,18 @@ cmd_build() {
     echo "  [1/2] 构建镜像 ..."
     REGISTRY="$registry" docker compose build
 
-    # 拉取仅有 image 的服务 (mysql, glances 等)
-    echo "  [2/2] 拉取外部服务镜像 ..."
-    docker compose pull 2>/dev/null || true
+    # 拉取仅有 image 的服务 (mysql:8.0 ~800MB, glances, 首次较慢)
+    echo "  [2/2] 拉取外部服务镜像 (mysql:8.0 ~800MB，首次可能需数分钟) ..."
+    docker compose pull || true
 
+    echo ""
     echo ">>> 构建完成，执行 ./docker.sh up 启动"
 }
 
 cmd_up() {
     ensure_docker
     echo ">>> 启动服务 ..."
-    docker compose up -d
+    docker compose up -d --remove-orphans
     docker compose ps
 }
 

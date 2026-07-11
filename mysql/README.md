@@ -8,7 +8,7 @@ MySQL 8.0，存储所有业务数据。
 
 | 文件 | 内容 |
 |------|------|
-| `01-steam.sql` | 完整 DDL：users / maps / download_tasks / map_requests / map_request_users / messages |
+| `01-steam.sql` | 完整 DDL：users / maps / tasks / map_requests / map_request_users / messages |
 | `02-cos.sql` | 增量迁移：maps 表新增 `cos_url` / `cos_version` 列 |
 
 ## 核心表
@@ -19,7 +19,7 @@ erDiagram
     users ||--o{ map_request_users : "提交"
     map_request_users ||--o{ map_requests : "关联"
     map_requests ||--o| maps : "批准后生成"
-    maps ||--o{ download_tasks : "下载"
+    maps ||--o{ tasks : "下载"
 
     users {
         int id PK
@@ -40,7 +40,7 @@ erDiagram
         int cos_version "已上传版本"
     }
 
-    download_tasks {
+    tasks {
         int id PK
         int map_id FK
         string downlink

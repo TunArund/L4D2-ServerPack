@@ -31,6 +31,38 @@ printHeader("下载任务监控", $additions);
 
     <div class="container-fluid">
 
+        <!-- COS 上传任务 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold fs-5">☁️ COS 上传任务</span>
+                <small class="text-muted" id="cos-upload-update">最后更新: --</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-info bg-opacity-25">等待中</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-waiting"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-warning bg-opacity-25">上传中</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-uploading"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-success bg-opacity-25">成功</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-success"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-fail"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 下载任务 -->
         <div class="card shadow-sm mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">

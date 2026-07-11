@@ -31,13 +31,13 @@ sequenceDiagram
     Note over U,L4D2: ② 管理员批准
     U->>PHP: POST /api/map_manage.php?action=update (install)
     PHP->>DB: UPDATE maps SET version=..., status='updating'
-    PHP->>DB: INSERT download_tasks (status='waiting')
+    PHP->>DB: INSERT tasks (status='waiting')
     PHP-->>U: 返回成功
 
     Note over U,L4D2: ③ task-daemon 下载
-    TD->>DB: SELECT download_tasks WHERE status='waiting'
+    TD->>DB: SELECT tasks WHERE status='waiting'
     TD->>TD: curl 下载 .vpk → addons/workshop/
-    TD->>DB: UPDATE download_tasks SET status='success'
+    TD->>DB: UPDATE tasks SET status='success'
     TD->>DB: UPDATE maps SET status='active'
     TD->>DB: 通知相关用户（broadcast_message）
 
@@ -76,16 +76,22 @@ sequenceDiagram
 | `billboard.php` | 公告板 |
 | `navbar.php` | 导航栏组件（`printHeader`/`printNavbar`/`printFooter`） |
 
+### 任务驱动（`web/src/api/lib/`）
+
+| 文件 | 功能 |
+|------|------|
+| `downloader.php` | **下载任务驱动**：`add_download_task` / `download_with_progress` / 回调 |
+| `uploader.php` | **上传任务驱动**：COS 客户端 + `process_upload_task` / `cos_batch_create_tasks` |
+
 ### PHP API（`web/src/api/`）
 
 | 文件 | 功能 |
 |------|------|
 | `tools.php` | 核心库：DB 连接、日志轮转、常量定义（`MAP_DIR`/`LOG_DIR`）、curl 代理 |
-| `cos_client.php` | 腾讯 COS 原生客户端：上传/删除/列表/签名/索引页生成/孤儿清理 |
+| `tasks.php` | 统一任务查询 API（POST `{status, count, type}`） |
 | `map_manage.php` | 地图管理 API：list/uninstall/delete/update/update_all/trigger_cos_sync/count |
 | `map_request.php` | 地图申请 API |
 | `map_request_tools.php` | Steam Workshop API 查询（`fetch_steam_item_by_api`） |
-| `downloader.php` | 下载任务管理：`add_download_task`/`fetch_download_task`/`download_with_progress`/回调 |
 | `login.php` / `register.php` / `logout.php` | 认证 |
 | `check_email.php` / `check_email_tools.php` | 邮箱验证 |
 
@@ -116,7 +122,7 @@ erDiagram
     users ||--o{ map_request_users : "提交"
     map_request_users ||--o{ map_requests : "关联"
     map_requests ||--o| maps : "批准后生成"
-    maps ||--o{ download_tasks : "下载任务"
+    maps ||--o{ tasks : "下载任务"
 
     users {
         int id PK
@@ -139,7 +145,7 @@ erDiagram
         int cos_version "已上传到 COS 的版本"
     }
 
-    download_tasks {
+    tasks {
         int id PK
         int map_id FK
         string downlink
@@ -173,6 +179,33 @@ WHERE status = 'active'
 |------|----------|----------|
 | COS 同步全部跳过 | task-daemon 未运行，或 addons 卷无 .vpk | `docker compose ps task-daemon`；`ls l4d2/data/coop/addons/workshop/` |
 | 每日更新不生效 | `SIDECAR_TOKEN` 不匹配或为空 | 检查 `.env` 中 token 是否一致 |
-| 地图下载后状态不更新 | download_tasks 回调未执行 | 检查 `task-daemon` 日志 |
+| 地图下载后状态不更新 | tasks 回调未执行 | 检查 `task-daemon` 日志 |
 | 文件权限错误 | `APP_UID/GID` 与宿主机不一致 | `id steam` 查看 UID |
+
+---
+
+## 5. 后续规划
+
+当前 `lib/` 下的 driver 仍耦合了一些可抽离的通用逻辑，计划进一步分层：
+
+```
+web/src/
+├── api/                    ← API 端点 + 内嵌 lib 驱动
+│   ├── lib/                ← 业务驱动 + 可复用模块
+│   │   ├── downloader.php  ← 下载任务驱动
+│   │   ├── uploader.php    ← 上传任务驱动（COS）
+│   │   ├── dbdriver.php    ← 【待抽离】通用 DB 操作
+│   │   ├── cosdriver.php   ← 【待抽离】纯 COS API
+│   │   └── ...
+│   ├── tasks.php           ← 统一任务查询
+│   ├── map_manage.php      ← 地图管理
+│   └── ...
+└── static/                 ← 前端静态资源
+```
+
+**目标**：
+- `api/` 目录下的文件仅为 HTTP 入口，不含业务逻辑
+- `lib/dbdriver.php` — 从 `tools.php` 和 `downloader.php` 中抽离通用 DB 操作
+- `lib/cosdriver.php` — 从 `uploader.php` 中抽离纯 COS API 层（签名/上传/删除/列表），`uploader.php` 仅保留上传任务调度逻辑（`process_upload_task` / `cos_batch_create_tasks`）
+- 各 driver 通过 `include_once` 按需组合，避免循环依赖
 | 手动触发 COS 同步无响应 | daemon 未运行或触发文件写入失败 | `docker compose ps task-daemon`；检查 `LOG_DIR` 权限 |

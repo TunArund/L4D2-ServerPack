@@ -40,26 +40,28 @@ CREATE TABLE `comments` (
 --
 
 --
--- Table structure for table `download_tasks`
+-- Table structure for table `tasks`
 --
 
-DROP TABLE IF EXISTS `download_tasks`;
+DROP TABLE IF EXISTS `tasks`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `download_tasks` (
+CREATE TABLE `tasks` (
   `id` int NOT NULL AUTO_INCREMENT,
+  `type` enum('download','upload') NOT NULL,
   `map_id` int unsigned NOT NULL,
-  `downlink` varchar(256) NOT NULL,
-  `disk_safe` varchar(256) NOT NULL,
-  `status` enum('waiting','downloading','fail','success') NOT NULL DEFAULT 'waiting',
-  `downloaded_bytes` bigint unsigned NOT NULL DEFAULT '0',
+  `src` varchar(512) NOT NULL COMMENT '源：download=SteamURL, upload=本地vpk路径',
+  `dst` varchar(512) NOT NULL COMMENT '目标：download=本地vpk路径, upload=COS对象键',
+  `disk_safe` varchar(256) NOT NULL COMMENT '文件名（无扩展名，展示用）',
+  `status` enum('waiting','downloading','uploading','success','fail') NOT NULL DEFAULT 'waiting',
+  `processed_bytes` bigint unsigned NOT NULL DEFAULT '0' COMMENT '已处理字节数',
   `total_bytes` bigint unsigned NOT NULL DEFAULT '0',
-  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `download_tasks_ibfk_1` (`map_id`),
-  CONSTRAINT `download_tasks_ibfk_1` FOREIGN KEY (`map_id`) REFERENCES `maps` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=442 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `tasks_ibfk_1` (`map_id`),
+  CONSTRAINT `tasks_ibfk_1` FOREIGN KEY (`map_id`) REFERENCES `maps` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

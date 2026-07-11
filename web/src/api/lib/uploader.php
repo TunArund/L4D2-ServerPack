@@ -32,11 +32,14 @@ function cos_configured(): bool {
 }
 
 /**
- * 批量上传版本有变化的地图到 COS
+ * 为待同步地图创建 COS 上传任务
  *
- * @return array ['uploaded' => int, 'skipped' => int, 'failed' => int]
+ * 查询 version 有变化的地图，为每个文件创建一条 type='upload' 的任务记录。
+ * 实际上传由 task-daemon 的 process_next_task() 逐个执行。
+ *
+ * @return array ['created' => int, 'skipped' => int]
  */
-function cos_batch_upload(PDO $pdo): array {
+function cos_batch_create_tasks(PDO $pdo): array {
     $stmt = $pdo->query(
         "SELECT id, disk_safe, version
          FROM maps
@@ -45,32 +48,82 @@ function cos_batch_upload(PDO $pdo): array {
     );
     $pending = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $uploaded = $skipped = $failed = 0;
+    $created = $skipped = 0;
 
     foreach ($pending as $map) {
         $local_path = MAP_DIR . $map['disk_safe'] . '.vpk';
         $cos_key    = $map['disk_safe'] . '.vpk';
 
+        // 检查是否已有同 map 的 waiting/uploading 任务
+        $dup = $pdo->prepare(
+            "SELECT 1 FROM tasks WHERE map_id = ? AND type = 'upload' AND status IN ('waiting', 'uploading')"
+        );
+        $dup->execute([$map['id']]);
+        if ($dup->fetch()) continue;
+
         if (!file_exists($local_path)) {
+            $ins = $pdo->prepare(
+                "INSERT INTO tasks (type, map_id, src, dst, disk_safe, total_bytes, status)
+                 VALUES ('upload', ?, ?, ?, ?, 0, 'fail')"
+            );
+            $ins->execute([$map['id'], $local_path, $cos_key, $map['disk_safe']]);
             $skipped++;
             continue;
         }
 
-        $res = cos_upload_file($local_path, $cos_key);
-        if ($res['success']) {
-            try {
-                $upd = $pdo->prepare("UPDATE maps SET cos_url = ?, cos_version = ? WHERE id = ?");
-                $upd->execute([$res['data']['url'], $map['version'], $map['id']]);
-            } catch (PDOException $e) {
-                // DB write failed but upload succeeded — non-fatal
-            }
-            $uploaded++;
-        } else {
-            $failed++;
-        }
+        $file_size = filesize($local_path) ?: 0;
+        $ins = $pdo->prepare(
+            "INSERT INTO tasks (type, map_id, src, dst, disk_safe, total_bytes, status)
+             VALUES ('upload', ?, ?, ?, ?, ?, 'waiting')"
+        );
+        $ins->execute([$map['id'], $local_path, $cos_key, $map['disk_safe'], $file_size]);
+        $created++;
     }
 
-    return ['uploaded' => $uploaded, 'skipped' => $skipped, 'failed' => $failed];
+    return ['created' => $created, 'skipped' => $skipped];
+}
+
+/**
+ * 处理单个 COS 上传任务（由 task-daemon 调度，带进度回调）
+ *
+ * @return array ['success' => bool, 'message' => string]
+ */
+function process_upload_task(PDO $pdo, array $task): array {
+    $task_id    = $task['id'];
+    $local_path = $task['src'];
+    $cos_key    = $task['dst'];
+
+    $pdo->prepare("UPDATE tasks SET status='uploading' WHERE id=?")->execute([$task_id]);
+
+    if (!file_exists($local_path)) {
+        $pdo->prepare("UPDATE tasks SET status='fail', total_bytes=0 WHERE id=?")->execute([$task_id]);
+        return array_error("文件不存在: {$local_path}");
+    }
+
+    $res = cos_upload_file($local_path, $cos_key, 'application/octet-stream', 3,
+        function($processed, $total) use ($pdo, $task_id) {
+            $pdo->prepare("UPDATE tasks SET processed_bytes=?, total_bytes=?, updated_at=NOW() WHERE id=?")
+                ->execute([$processed, $total, $task_id]);
+        }
+    );
+
+    if ($res['success']) {
+        $pdo->prepare("UPDATE tasks SET status='success', processed_bytes=total_bytes WHERE id=?")->execute([$task_id]);
+        try {
+            $stmt = $pdo->prepare("UPDATE maps SET cos_url=?, cos_version=(SELECT version FROM maps WHERE id=?) WHERE id=?");
+            $stmt->execute([$res['data']['url'], $task['map_id'], $task['map_id']]);
+        } catch (PDOException $e) {}
+        return array_success("上传成功");
+    } else {
+        $pdo->prepare("UPDATE tasks SET status='fail' WHERE id=?")->execute([$task_id]);
+        return array_error($res['message']);
+    }
+}
+
+// 兼容旧调用名
+function cos_batch_upload(PDO $pdo): array {
+    $result = cos_batch_create_tasks($pdo);
+    return ['uploaded' => 0, 'skipped' => $result['skipped'], 'failed' => 0];
 }
 
 /**
@@ -431,16 +484,18 @@ function cos_generate_auth(
  * 使用流式上传（CURLOPT_INFILE），适用于大文件，不会将整个文件加载到内存。
  *
  * @param string $local_path 本地文件路径
- * @param string $cos_key    COS 对象键，如 "l4d2-maps/foo.vpk"
- * @param string $content_type MIME 类型，默认 application/octet-stream
- * @param int    $max_retries 最大重试次数，默认 3
+ * @param string $cos_key    COS 对象键
+ * @param string $content_type MIME 类型
+ * @param int    $max_retries 最大重试次数
+ * @param callable|null $on_progress 进度回调 function(int $processed, int $total): void
  * @return array ['success' => bool, 'url' => string, 'message' => string]
  */
 function cos_upload_file(
     string $local_path,
     string $cos_key,
     string $content_type = 'application/octet-stream',
-    int $max_retries = 3
+    int $max_retries = 3,
+    ?callable $on_progress = null
 ): array {
     if (!cos_configured()) {
         return array_error('COS 未配置（缺少 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量）');
@@ -489,23 +544,39 @@ function cos_upload_file(
             return array_error("无法初始化 cURL");
         }
 
-        curl_setopt_array($ch, [
+        $opts = [
             CURLOPT_PUT            => true,
             CURLOPT_INFILE         => $fp,
             CURLOPT_INFILESIZE     => $file_size,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => true,               // 需要响应头
+            CURLOPT_HEADER         => true,
             CURLOPT_CONNECTTIMEOUT => 30,
-            CURLOPT_TIMEOUT        => 0,                  // 大文件不设超时
+            CURLOPT_TIMEOUT        => 0,
             CURLOPT_HTTPHEADER     => [
                 "Authorization: {$authorization}",
                 "Content-MD5: {$content_md5}",
                 "Content-Type: {$content_type}",
                 "Date: {$date}",
                 "Host: {$host}",
-                "Expect:",                              // 抑制 100-continue
+                "Expect:",
             ],
-        ]);
+        ];
+
+        // 进度回调（用于 dashboard 展示上传进度条）
+        if ($on_progress !== null) {
+            $opts[CURLOPT_NOPROGRESS] = false;
+            $lastUpdate = 0;
+            $opts[CURLOPT_PROGRESSFUNCTION] = function (
+                $resource, float $dl_size, float $downloaded, float $ul_size, float $uploaded
+            ) use ($on_progress, $file_size, &$lastUpdate) {
+                $now = microtime(true);
+                if (($now - $lastUpdate) <= 1) return;
+                $lastUpdate = $now;
+                ($on_progress)((int)$uploaded, $file_size);
+            };
+        }
+
+        curl_setopt_array($ch, $opts);
 
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

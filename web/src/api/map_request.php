@@ -101,7 +101,7 @@ function add_request($pdo, $user_id, $steam_id)
 	}
 }
 
-include_once 'downloader.php';
+include_once 'lib/downloader.php';
 /**
  * 批准逻辑,根据申请从maps表获取下载信息，添加下载任务
  */
