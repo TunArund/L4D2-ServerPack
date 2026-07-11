@@ -170,7 +170,7 @@ cmd_build() {
 cmd_up() {
     ensure_docker
     echo ">>> 启动服务 ..."
-    docker compose up -d --remove-orphans
+    docker compose up -d --remove-orphans "$@"
     docker compose ps
 }
 
