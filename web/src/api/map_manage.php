@@ -247,6 +247,46 @@ switch($action){
     }
     return json_success($summary);
   exit;
+  case 'trigger_update_all':
+    // 手动触发 — 与 update_all 相同逻辑，直接复用
+    $stmt = $pdo->prepare("SELECT id, status FROM maps WHERE status != 'updating' ");
+    $result = exec_stmt($stmt);
+    if(!$result['success']) return json_error('查询数据库失败'.$result['message']);
+    $maps = $result['data']->fetchAll(PDO::FETCH_ASSOC);
+    $updated = $fail_count = 0;
+    $details = [];
+    foreach($maps as $map){
+      $install = ($map['status'] === 'active');
+      $result = update_map($pdo, $map['id'], $install);
+      if($result['success']){
+        $updated++;
+        $details[] = $result['data'];
+        continue;
+      }
+      $fail_count++;
+    }
+    return json_success([
+      'message' => "检查完成：{$updated} 个已更新，{$fail_count} 个失败，共 " . count($maps) . " 个地图",
+      'updated' => $updated,
+      'failed'  => $fail_count,
+      'total'   => count($maps),
+    ]);
+  exit;
+  case 'trigger_cos_sync':
+    include_once API_DIR . 'cos_client.php';
+    if (!cos_configured()) json_error('COS 未配置，请检查 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量');
+
+    $upload  = cos_batch_upload($pdo);
+    $index   = cos_sync_index();
+    $cleanup = cos_cleanup_orphans($pdo);
+
+    json_success([
+      'message' => "COS 同步完成：上传 {$upload['uploaded']} 跳过 {$upload['skipped']} 失败 {$upload['failed']} | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个",
+      'upload'  => $upload,
+      'index'   => $index,
+      'cleanup' => $cleanup,
+    ]);
+  exit;
   case 'count':
     $result = count_map($pdo);
     json_success($result);

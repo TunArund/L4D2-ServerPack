@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{COS_PAGE_TITLE}}</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #c9d1d9;
+    --text-muted: #6e7681;
+    --accent: #58a6ff;
+    --accent-dim: #1f6feb33;
+    --warn: #d29922;
+    --success: #3fb950;
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(12px);
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e6edf3;
+  }
+  header .sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 24px; }
+
+  /* breadcrumb */
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .breadcrumb a { color: var(--accent); padding: 2px 6px; border-radius: 4px; }
+  .breadcrumb a:hover { background: var(--accent-dim); text-decoration: none; }
+  .breadcrumb .sep { color: var(--text-muted); user-select: none; }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+
+  /* toolbar */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .toolbar .count { font-weight: 500; }
+
+  /* loading */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px;
+    color: var(--text-muted);
+  }
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* table */
+  .file-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .file-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+    background: #16181f;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .file-table td {
+    padding: 10px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .file-table tr:last-child td { border-bottom: none; }
+  .file-table tr:hover { background: #1f222c; }
+  .file-table tr.row-dir { cursor: pointer; }
+  .file-table tr.row-dir:hover { background: var(--accent-dim); }
+
+  .icon { width: 20px; display: inline-block; text-align: center; margin-right: 6px; }
+  .icon-dir  { color: var(--accent); }
+  .icon-file { color: var(--text-muted); }
+  .icon-back { color: var(--accent); }
+
+  .name-col {
+    max-width: 500px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .name-col a.dir-link { font-weight: 500; }
+
+  .size-col {
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .date-col {
+    white-space: nowrap;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* footer */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* error */
+  .error-box {
+    background: #da363322;
+    border: 1px solid #da363355;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    color: #f85149;
+    font-size: 14px;
+  }
+  .error-box summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+  .error-box pre { font-size: 12px; margin-top: 8px; opacity: .8; overflow-x: auto; }
+
+  /* empty */
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* responsive */
+  @media (max-width: 640px) {
+    .container { padding: 12px 10px; }
+    .file-table th:nth-child(2),
+    .file-table td:nth-child(2) { display: none; }
+    .name-col { max-width: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🗺️ L4D2 地图文件</h1>
+  <div class="sub">COS 对象存储 · 动态目录浏览</div>
+</header>
+
+<div class="container">
+
+  <!-- breadcrumb -->
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <!-- toolbar -->
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+  </div>
+
+  <!-- spinner -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span>加载中…</span>
+  </div>
+
+  <!-- error -->
+  <div class="error-box" id="error" style="display:none"></div>
+
+  <!-- file table -->
+  <table class="file-table" id="fileTable" style="display:none">
+    <thead>
+      <tr>
+        <th>名称</th>
+        <th>大小</th>
+        <th>修改时间</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <!-- empty -->
+  <div class="empty" id="empty" style="display:none">此目录为空</div>
+</div>
+
+<footer>
+  由 <a href="https://github.com/your-org/L4D2-ServerPack" target="_blank" rel="noopener">L4D2 ServerPack</a> 驱动 ·
+  COS Bucket: <code>{{COS_BUCKET}}</code>
+</footer>
+
+<script>
+  // ============================================================
+  // COS File Browser — 纯前端，零依赖
+  // ============================================================
+  //
+  // 此文件由 downloader_daemon.php 在 COS 批量上传阶段自动生成并同步到桶根。
+  // {{...}} 占位符在生成时替换为 .env 中的实际值。
+  //
+  // 依赖：COS 桶须配置 CORS + Bucket Policy（允许匿名 GetBucket）
+  // CORS 规则（COS 控制台 → 安全管理 → 跨域访问 CORS 设置）：
+  //   来源 Origin: *
+  //   操作 Methods: GET, HEAD
+  //   Allow-Headers: *
+  //   Expose-Headers: ETag, Content-Length
+  //   超时 Max-Age: 600
+
+  // ============ 由 .env 动态注入（切勿直接修改！） ============
+  var COS_CONFIG = {
+    bucket:   '{{COS_BUCKET}}',
+    region:   '{{COS_REGION}}',
+    apiBase:  '{{COS_API_BASE}}',
+    cdnBase:  '{{COS_CDN_BASE}}',
+  };
+
+  // ============================================================
+  // 状态
+  // ============================================================
+  var currentPrefix = '';
+
+  function getPrefixFromHash() {
+    var h = window.location.hash;
+    if (h.indexOf('#prefix=') === 0) {
+      return decodeURIComponent(h.slice('#prefix='.length));
+    }
+    return '';
+  }
+
+  function setHash(prefix) {
+    if (prefix) {
+      window.location.hash = 'prefix=' + encodeURIComponent(prefix);
+    } else {
+      history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
+  // ============================================================
+  // DOM helpers
+  // ============================================================
+  var $ = function(id) { return document.getElementById(id); };
+
+  function showLoading() {
+    $('loading').style.display = 'flex';
+    $('fileTable').style.display = 'none';
+    $('empty').style.display = 'none';
+    $('error').style.display = 'none';
+  }
+
+  function showError(title, detail) {
+    $('loading').style.display = 'none';
+    $('fileTable').style.display = 'none';
+    $('empty').style.display = 'none';
+    var el = $('error');
+    el.style.display = 'block';
+    el.innerHTML = '<summary>' + escapeHtml(title) + '</summary><pre>' + escapeHtml(detail) + '</pre>';
+  }
+
+  function showEmpty() {
+    $('loading').style.display = 'none';
+    $('fileTable').style.display = 'none';
+    $('error').style.display = 'none';
+    $('empty').style.display = 'block';
+  }
+
+  function showTable(rows) {
+    $('loading').style.display = 'none';
+    $('error').style.display = 'none';
+    $('empty').style.display = 'none';
+    $('tbody').innerHTML = rows.join('');
+    $('fileTable').style.display = '';
+    $('count').textContent = rows.length + ' 项';
+  }
+
+  // ============================================================
+  // 格式化
+  // ============================================================
+  function formatSize(bytes) {
+    if (bytes == null || bytes === 0) return '—';
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    var v = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1);
+    return v + ' ' + units[i];
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ============================================================
+  // 面包屑
+  // ============================================================
+  function renderBreadcrumb() {
+    var nav = $('breadcrumb');
+    var html = '<a href="#" data-nav="">📁 根目录</a>';
+
+    if (currentPrefix) {
+      var parts = currentPrefix.split('/').filter(Boolean);
+      var accumulated = '';
+      parts.forEach(function(part, i) {
+        accumulated += part + '/';
+        html += '<span class="sep">/</span>';
+        if (i === parts.length - 1) {
+          html += '<span class="current">' + escapeHtml(part) + '</span>';
+        } else {
+          html += '<a href="#" data-nav="' + escapeHtml(accumulated) + '">' + escapeHtml(part) + '</a>';
+        }
+      });
+    }
+    nav.innerHTML = html;
+
+    nav.querySelectorAll('a[data-nav]').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentPrefix = a.dataset.nav;
+        setHash(currentPrefix);
+        loadListing();
+      });
+    });
+  }
+
+  // ============================================================
+  // 核心：调用 COS ListBucket API
+  // ============================================================
+  function buildDownloadUrl(key) {
+    return COS_CONFIG.cdnBase + '/' + encodeURI(key).replace(/%2F/g, '/');
+  }
+
+  function fetchListing(prefix) {
+    var params = new URLSearchParams({
+      delimiter: '/',
+      'max-keys': '1000'
+    });
+    if (prefix) {
+      params.set('prefix', prefix);
+    }
+
+    var url = COS_CONFIG.apiBase + '/?' + params.toString();
+    return fetch(url).then(function(resp) {
+      if (!resp.ok) {
+        throw new Error('COS API 返回 HTTP ' + resp.status + ' ' + resp.statusText);
+      }
+      return resp.text();
+    }).then(function(text) {
+      var parser = new DOMParser();
+      var xml = parser.parseFromString(text, 'application/xml');
+
+      var errEl = xml.querySelector('Error');
+      if (errEl) {
+        var code = (errEl.querySelector('Code') && errEl.querySelector('Code').textContent) || 'Unknown';
+        var msg  = (errEl.querySelector('Message') && errEl.querySelector('Message').textContent) || '';
+        throw new Error('COS Error: ' + code + ' — ' + msg);
+      }
+
+      var result = { dirs: [], files: [], truncated: false };
+
+      var isTruncated = xml.querySelector('IsTruncated');
+      result.truncated = isTruncated && isTruncated.textContent === 'true';
+
+      xml.querySelectorAll('CommonPrefixes > Prefix').forEach(function(el) {
+        var full = el.textContent;
+        var name = prefix ? full.substring(prefix.length) : full;
+        result.dirs.push({ full: full, name: name });
+      });
+
+      xml.querySelectorAll('Contents').forEach(function(el) {
+        var keyEl = el.querySelector('Key');
+        var sizeEl = el.querySelector('Size');
+        var lastEl = el.querySelector('LastModified');
+        if (!keyEl) return;
+        var key = keyEl.textContent;
+        if (key === prefix) return;
+        result.files.push({
+          key: key,
+          size: sizeEl ? parseInt(sizeEl.textContent || '0', 10) : 0,
+          lastModified: lastEl ? lastEl.textContent : ''
+        });
+      });
+
+      return result;
+    });
+  }
+
+  // ============================================================
+  // 渲染
+  // ============================================================
+  function renderListing(data) {
+    var rows = [];
+
+    // 返回上级
+    if (currentPrefix) {
+      var parent = currentPrefix.substring(0, currentPrefix.slice(0, -1).lastIndexOf('/') + 1);
+      rows.push(
+        '<tr class="row-dir" data-nav="' + escapeHtml(parent) + '">' +
+        '<td class="name-col"><span class="icon icon-back">↩</span><a class="dir-link">..</a></td>' +
+        '<td class="size-col">—</td>' +
+        '<td class="date-col">—</td>' +
+        '</tr>'
+      );
+    }
+
+    // 子目录
+    data.dirs.sort(function(a, b) { return a.name.localeCompare(b.name, 'zh'); });
+    data.dirs.forEach(function(d) {
+      rows.push(
+        '<tr class="row-dir" data-nav="' + escapeHtml(d.full) + '">' +
+        '<td class="name-col"><span class="icon icon-dir">📁</span><a class="dir-link">' + escapeHtml(d.name) + '</a></td>' +
+        '<td class="size-col">—</td>' +
+        '<td class="date-col">—</td>' +
+        '</tr>'
+      );
+    });
+
+    // 文件
+    data.files.sort(function(a, b) { return a.key.localeCompare(b.key, 'zh'); });
+    data.files.forEach(function(f) {
+      var name = currentPrefix ? f.key.substring(currentPrefix.length) : f.key;
+      var dlUrl = buildDownloadUrl(f.key);
+      rows.push(
+        '<tr>' +
+        '<td class="name-col"><span class="icon icon-file">📄</span><a href="' + dlUrl + '">' + escapeHtml(name) + '</a></td>' +
+        '<td class="size-col">' + formatSize(f.size) + '</td>' +
+        '<td class="date-col">' + formatDate(f.lastModified) + '</td>' +
+        '</tr>'
+      );
+    });
+
+    if (rows.length === 0) {
+      showEmpty();
+    } else {
+      showTable(rows);
+    }
+
+    document.querySelectorAll('tr.row-dir[data-nav]').forEach(function(tr) {
+      tr.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentPrefix = tr.dataset.nav;
+        setHash(currentPrefix);
+        loadListing();
+      });
+    });
+  }
+
+  // ============================================================
+  // 主流程
+  // ============================================================
+  function loadListing() {
+    showLoading();
+    renderBreadcrumb();
+    fetchListing(currentPrefix).then(function(data) {
+      renderListing(data);
+    }).catch(function(err) {
+      console.error(err);
+      var detail = err.message;
+      if (err.message.indexOf('Failed to fetch') !== -1 || err.message.indexOf('NetworkError') !== -1) {
+        detail = '网络请求失败。请确认：\n'
+          + '1. COS 桶已配置 CORS 跨域规则\n'
+          + '2. COS 桶访问权限设为"公有读私有写"\n'
+          + '3. 浏览器控制台查看具体 CORS 错误\n\n'
+          + '原始错误: ' + err.message;
+      }
+      showError('无法加载文件列表', detail);
+    });
+  }
+
+  // ============================================================
+  // 入口
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function() {
+    currentPrefix = getPrefixFromHash();
+    loadListing();
+  });
+
+  window.addEventListener('hashchange', function() {
+    var newPrefix = getPrefixFromHash();
+    if (newPrefix !== currentPrefix) {
+      currentPrefix = newPrefix;
+      loadListing();
+    }
+  });
+</script>
+</body>
+</html>

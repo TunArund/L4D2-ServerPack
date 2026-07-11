@@ -69,7 +69,9 @@ graph TB
 
 核心设计：
 - **请求路由**：nginx 根据路径将请求分发到 php-fpm (`/`, `/api/*`)、sidecar (`/manage`)、glances (`/monitor-api`)，静态资源直接返回。
-- **地图下载**：用户通过 Web 面板提交下载请求 → php 写入 `download_tasks` 表 → downloader 每 5 秒轮询 → curl 从 Steam CDN 下载 vpk 到 addons 共享卷 → l4d2 直接读取。每日凌晨 3 点自动将 active 地图上传至腾讯 COS，用户可通过 CDN 直链下载。
+- **地图下载**：用户通过 Web 面板提交下载请求 → php 写入 `download_tasks` 表 → `task_daemon` 每 5 秒轮询 → curl 从 Steam CDN 下载 vpk 到 addons 共享卷 → l4d2 直接读取。
+- **COS 分发**：每日凌晨 3 点通过 API 触发 `cos_batch_upload` 上传 active 地图到腾讯 COS → `cos_sync_index` 更新目录浏览页 `index.html` → `cos_cleanup_orphans` 清理已删地图的残留文件。管理员也可在面板手动触发。
+- **静态网站**：COS 桶开启静态网站托管 + 自定义域名 `map.tunarund.top`，`index.html` 通过 JS 动态调用 ListBucket API 实现目录浏览，无需 PHP 中转。
 - **日志轮转**：`add_log()` 内置按日轮转，目录结构 `{应用名}/YYYY/MM/DD.log`，零外部依赖。
 - **测试体系**：`./test.sh` 统一测试入口 — `./test.sh all` 自动化 + 人工引导全覆盖，`./test.sh healthcheck` 快速探活。
 - **容器管理**：sidecar 挂载 `docker.sock`，通过白名单控制可查看/可重启的容器，Token 认证。
@@ -84,7 +86,7 @@ graph TB
 | **nginx** | `nginx:alpine` | ~62MB | 反向代理 + 静态文件 | 80, 443 |
 | **php** | `php:8.3-fpm-alpine` | ~100MB | PHP 应用后端 | 9000 |
 | **mysql** | `mysql:8.0` | ~799MB | 数据库 | 3306 |
-| **downloader** | `php:8.3-cli-alpine` | ~100MB | 地图下载守护进程 | — |
+| **downloader** | `php:8.3-cli-alpine` | ~100MB | `task_daemon` 地图下载 + 每日维护编排 | — |
 | **sidecar** | `php:8.3-cli-alpine` | ~150MB | 容器管理（挂载 docker.sock） | 8080 |
 | **glances** | `nicolargo/glances` | ~124MB | 系统监控 REST API（pid:host） | 61208 |
 | **l4d2** | `ubuntu:22.04` | ~335MB | 游戏服务器 | 27015/udp+tcp |
@@ -181,14 +183,14 @@ l4d2/data/versus/                 ← 对抗服专用数据（不进 Git）
 | `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD` | mysql, php, dl | 数据库 |
 | `APP_UID` / `APP_GID` | php, dl, l4d2 | **必须与游戏文件 owner 一致** |
 | `GAME_DIR` | l4d2 | 游戏文件目录（默认 `./l4d2/src`） |
-| `SIDECAR_TOKEN` | php, sidecar, downloader | API 令牌（空 = 跳过认证）；downloader 用于每日更新内部调用 |
+| `SIDECAR_TOKEN` | php, sidecar, downloader | API 令牌（空 = 跳过认证）；downloader 用于 `call_api()` 每日维护内部调用 |
 | `ALLOWED_CONTAINERS` / `RESTARTABLE_CONTAINERS` | sidecar | 容器管理白名单 |
 | `L4D2_COOP_ARGS` / `L4D2_VERSUS_ARGS` | l4d2 | srcds 启动参数 |
 | `SES_SECRET_ID` / `SES_SECRET_KEY` | php | 腾讯云 SES 邮件 |
-| `COS_SECRET_ID` / `COS_SECRET_KEY` | downloader | 腾讯云 COS API 密钥 |
-| `COS_BUCKET` | downloader | COS 存储桶名称（含 APPID） |
-| `COS_REGION` | downloader | 存储桶地域，默认 `ap-guangzhou` |
-| `COS_CUSTOM_DOMAIN` | downloader | 可选：CDN 加速域名，设置后 COS URL 使用该域名 |
+| `COS_SECRET_ID` / `COS_SECRET_KEY` | php | 腾讯云 COS API 密钥 |
+| `COS_BUCKET` | php | COS 存储桶名称（含 APPID） |
+| `COS_REGION` | php | 存储桶地域，默认 `ap-guangzhou` |
+| `COS_CUSTOM_DOMAIN` | php | 可选：CDN 加速域名，设置后 COS 公网 URL 使用该域名 |
 | `GITHUB_USER` / `GITHUB_TOKEN` | docker.sh | ghcr.io 推送凭据 |
 
 ---
