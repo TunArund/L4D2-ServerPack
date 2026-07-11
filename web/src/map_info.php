@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
 $id = get_GET('id',1,0);
 $pdo = conn_db();
 //准备查询语句
-$stmt = $pdo->prepare("SELECT title,link,steam_id,downlink,description,records,subscriptions,size,img_urls,preview_url FROM maps WHERE id=:id");
+$stmt = $pdo->prepare("SELECT title,link,steam_id,downlink,description,records,subscriptions,size,img_urls,preview_url,cos_url FROM maps WHERE id=:id");
 $stmt->bindValue(':id',  $id, PDO::PARAM_INT);
 $stmt->execute();
 $maps_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -34,6 +34,7 @@ if ($maps_info) {
   $link = $result['link'];
   $steamlink = 'steam://url/CommunityFilePage/'.$result['steam_id'];
   $downlink = $result['downlink'];
+  $cos_url = $result['cos_url'];
   $description = $result['description'];
   $records = json_decode($result['records'] ?? '[]');
   $subscriptions = $result['subscriptions'];
@@ -44,6 +45,7 @@ if ($maps_info) {
   $title = '无此地图';
   $link = '#';
   $downlink = '暂无';
+  $cos_url = null;
   $description = '无此地图';
   $records = '';
   $subscriptions = 0;
@@ -227,6 +229,16 @@ function print_comments($pdo, $map_id)
   printNavbar('billboard');
   $carousel = new CarouselGenerator('img_carousel', $img_urls);
   $renderedCarousel = $carousel->render();
+
+  // 构建 CDN 下载按钮
+  $cdn_buttons = '';
+  if ($cos_url) {
+      $safe_cos = htmlspecialchars($cos_url, ENT_QUOTES, 'UTF-8');
+      $cdn_buttons .= "<p><a class=\"btn btn-primary\" href=\"{$safe_cos}\" target=\"_blank\">腾讯CDN（直链下载）</a></p>\n";
+  }
+  $safe_dl = htmlspecialchars($downlink, ENT_QUOTES, 'UTF-8');
+  $cdn_buttons .= "<p><a class=\"btn btn-success\" href=\"{$safe_dl}\" target=\"_blank\">SteamCDN（直链下载）</a></p>";
+
   echo <<<HTML
     <div class="row">
         <div class="col text-light">
@@ -235,7 +247,7 @@ function print_comments($pdo, $map_id)
             <p>大小: $size</p>
             <p><a class="btn btn-success" href="$link" target="_blank">跳转到steam页面</a></p>
             <p><a class="btn btn-success" href="$steamlink">在steam客户端中查看</a></p>
-            <p><a  class="btn btn-success" href="$downlink" target="_blank">直接下载</a></p>
+            $cdn_buttons
         </div>
         <div class="col align-self-center">
             $renderedCarousel

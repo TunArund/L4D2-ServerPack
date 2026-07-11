@@ -210,6 +210,10 @@ function printMapRequest($isAdmin)
 				<input type="url" name="map-link" id="map-link" class="form-control" placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=1234567890" required>
 				<button class="btn btn-primary mt-2" data-action="save_button">提交申请</button>
 			</div>
+			<div class="row" role="alert">
+				<button class="btn btn-info" href="https://steamcommunity.com/app/550/workshop/" target="_blank" rel="noopener">🎮 打开创意工坊</button>
+				<small class="text-light mb-0">⚠️ 仅支持<strong>地图</strong>类型，无需材质 (Texture) / 音频 (Audio) 资源</small>
+			</div>
 			<!-- 显示申请列表表格 -->
 			<form id="request-form">
 				<div class="mb-2">

@@ -53,7 +53,7 @@ fi
 echo "  生成远端 .env"
 REMOTE_UID=$(ssh "$REMO_HOST" 'id -u')
 REMOTE_GID=$(ssh "$REMO_HOST" 'id -g')
-sed "s/^UID=.*/UID=$REMOTE_UID/; s/^GID=.*/GID=$REMOTE_GID/" .env.example > /tmp/.env.deploy
+sed "s/^APP_UID=.*/APP_UID=$REMOTE_UID/; s/^APP_GID=.*/APP_GID=$REMOTE_GID/" .env.example > /tmp/.env.deploy
 scp /tmp/.env.deploy "$REMO_HOST:$REMO_PROJ_DIR/.env"
 
 if changed versus-data l4d2/data/versus; then

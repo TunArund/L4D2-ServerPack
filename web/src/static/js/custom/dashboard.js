@@ -278,10 +278,10 @@ function updateLineChart(chart, val) {
     chart.update('none');
 }
 
-function updateNetChart(rx, tx) {
+function updateNetChart(download, upload) {
     if (!chartNet) return;
-    push(chartNet.data.datasets[0].data, rx);
-    push(chartNet.data.datasets[1].data, tx);
+    push(chartNet.data.datasets[0].data, download);
+    push(chartNet.data.datasets[1].data, upload);
     chartNet.update('none');
 }
 
@@ -344,9 +344,9 @@ async function updateMetrics() {
             tx = (iface.bytes_sent_rate_per_sec || 0) * 8;
         }
 
-        updateNetChart(rx, tx);
-        document.querySelector('#val-net-rx').textContent = formatBits(rx) + '/s';
-        document.querySelector('#val-net-tx').textContent = formatBits(tx) + '/s';
+        updateNetChart(tx, rx);
+        document.querySelector('#val-net-rx').textContent = formatBits(tx) + '/s';
+        document.querySelector('#val-net-tx').textContent = formatBits(rx) + '/s';
         document.querySelector('#detail-net').textContent = '↓下载 ↑上传';
         document.querySelector('#metrics-update').textContent =
             '最后更新: ' + new Date().toLocaleTimeString();

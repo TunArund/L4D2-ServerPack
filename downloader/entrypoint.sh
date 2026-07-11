@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-D_UID="${UID:-1000}"
-D_GID="${GID:-1000}"
+D_UID="${APP_UID:-1000}"
+D_GID="${APP_GID:-1000}"
 
 # 创建用户/组（Alpine 无 getent，用 grep 替代）
 if ! grep -q "^.*:.*:${D_GID}:" /etc/group 2>/dev/null; then

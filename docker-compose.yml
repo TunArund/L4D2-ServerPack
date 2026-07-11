@@ -76,8 +76,8 @@ services:
     build:
       context: ./web
       args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
         REGISTRY: ${REGISTRY}
     image: ${REGISTRY}l4d2-php:latest
     container_name: l4d2-php
@@ -87,8 +87,8 @@ services:
       DB_DATABASE: ${MYSQL_DATABASE}
       DB_USER: ${MYSQL_USER}
       DB_PASSWORD: ${MYSQL_PASSWORD}
-      TENCENTCLOUD_SECRET_ID: ${TENCENTCLOUD_SECRET_ID}
-      TENCENTCLOUD_SECRET_KEY: ${TENCENTCLOUD_SECRET_KEY}
+      SES_SECRET_ID: ${SES_SECRET_ID}
+      SES_SECRET_KEY: ${SES_SECRET_KEY}
       SIDECAR_TOKEN: ${SIDECAR_TOKEN:-}
       MAP_DIR: ${MAP_DIR:-/var/www/addons/workshop/}
       LOG_DIR: ${LOG_DIR:-/var/www/html/logs/}
@@ -107,15 +107,15 @@ services:
       context: ./downloader
       args:
         APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
         REGISTRY: ${REGISTRY}
     image: ${REGISTRY}l4d2-downloader:latest
     container_name: l4d2-downloader
     restart: unless-stopped
     environment:
-      UID: ${UID:-1000}
-      GID: ${GID:-1000}
+      APP_UID: ${APP_UID:-1000}
+      APP_GID: ${APP_GID:-1000}
       DB_HOST: mysql
       DB_DATABASE: ${MYSQL_DATABASE}
       DB_USER: ${MYSQL_USER}
@@ -123,6 +123,12 @@ services:
       WEB_HOST: nginx
       MAP_DIR: ${MAP_DIR:-/var/www/addons/workshop/}
       LOG_DIR: ${LOG_DIR:-/var/www/html/logs/}
+      COS_SECRET_ID: ${COS_SECRET_ID:-}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-}
+      COS_BUCKET: ${COS_BUCKET:-}
+      COS_REGION: ${COS_REGION:-ap-guangzhou}
+      COS_CUSTOM_DOMAIN: ${COS_CUSTOM_DOMAIN:-}
+      SIDECAR_TOKEN: ${SIDECAR_TOKEN:-}
     volumes:
       - ./web/src/api:/var/www/html/api:ro
       - ./web/src/downloader_daemon.php:/var/www/html/downloader_daemon.php:ro
@@ -176,16 +182,16 @@ services:
       context: .
       dockerfile: l4d2/Dockerfile
       args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
     image: ${REGISTRY}l4d2-server-game:latest
     container_name: l4d2-coop
     stdin_open: true
     tty: true
     restart: unless-stopped
     environment:
-      UID: ${UID:-1000}
-      GID: ${GID:-1000}
+      APP_UID: ${APP_UID:-1000}
+      APP_GID: ${APP_GID:-1000}
       L4D2_EXTRA_ARGS: ${L4D2_COOP_ARGS:-+ip 0.0.0.0 -port 27015 -timeout 2 +sv_steam_bypass 1 +sv_setmax 32 +map c2m1_highway +z_difficulty normal +exec server.cfg -tickrate 100 -high -heapsize 524288 -num_edicts 4096 -processheap}
     volumes:
       - ${GAME_DIR:-./l4d2/src}:/home/steam/l4d2              # 游戏本体（bind mount）
@@ -213,8 +219,8 @@ services:
     tty: true
     restart: unless-stopped
     environment:
-      UID: ${UID:-1000}
-      GID: ${GID:-1000}
+      APP_UID: ${APP_UID:-1000}
+      APP_GID: ${APP_GID:-1000}
       L4D2_EXTRA_ARGS: ${L4D2_VERSUS_ARGS:-+ip 0.0.0.0 -port 27015 +sv_clockcorrection_msecs 25 -timeout 2 -tickrate 100 +mp_gamemode versus +map c1m1_hotel -maxplayers 32 +exec server.cfg}
     volumes:
       - ${GAME_DIR:-./l4d2/src}:/home/steam/l4d2              # 游戏本体（bind mount）

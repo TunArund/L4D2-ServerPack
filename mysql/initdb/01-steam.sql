@@ -161,6 +161,8 @@ CREATE TABLE `maps` (
   `is_map` tinyint(1) DEFAULT '1',
   `version` int unsigned DEFAULT NULL COMMENT '地图实际更新时间戳',
   `preview_url` varchar(256) DEFAULT NULL COMMENT '一个缩略图的url',
+  `cos_url` varchar(512) DEFAULT NULL COMMENT 'COS 对象公网访问 URL',
+  `cos_version` int unsigned DEFAULT NULL COMMENT '已上传至 COS 的地图版本（与 version 比较判断是否需要重新上传）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `steam_id` (`steam_id`),
   UNIQUE KEY `steam_id_2` (`steam_id`)

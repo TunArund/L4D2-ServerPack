@@ -21,7 +21,7 @@ $additions = <<<HTML
     .log-toggle .triangle::before { content: "▶ "; }
     .log-toggle:not(.collapsed) .triangle::before { content: "▼ "; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<script src="/static/js/chart.umd.min.js"></script>
 HTML;
 printHeader("下载任务监控", $additions);
 ?>

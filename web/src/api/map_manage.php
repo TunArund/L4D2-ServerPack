@@ -1,10 +1,16 @@
 <?php
 include_once 'tools.php';
 header('Content-Type: application/json');
-//检查登录与管理员权限
-if (!check_login()) json_error('请先登录。');
-$is_admin = check_admin();
-if(!$is_admin) json_error('权限不足。');
+
+// 认证：内部服务调用（downloader daemon 每日更新）可通过 token 绕过登录
+$sidcar_token = getenv('SIDECAR_TOKEN') ?: '';
+$api_token    = $_GET['token'] ?? '';
+$is_internal  = ($sidcar_token !== '' && hash_equals($sidcar_token, $api_token));
+
+if (!$is_internal) {
+    if (!check_login()) json_error('请先登录。');
+    if (!check_admin()) json_error('权限不足。');
+}
 //设置报错日志
 ini_set('log_errors', 1);
 ini_set('error_log', '../logs/map_manage_error.log');
