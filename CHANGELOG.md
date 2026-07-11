@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## 2026-07-11 — 服务重命名 + COS 同步架构修正
+
+### `downloader` 服务 → `task-daemon`
+
+- 服务/容器/镜像名从 `downloader` / `l4d2-downloader` 改为 `task-daemon` / `l4d2-task-daemon`，与 `task_daemon.php` 语义一致
+- 构建目录 `downloader/` → `task-daemon/`，`entrypoint.sh` 内系统用户同步更新
+- 全项目引用同步更新：`docker-compose.yml`、`sidecar/server.php`、`sidecar/Dockerfile`、`base-php/Dockerfile.cli`、`README.md`、`test/script/*.sh`、`map_manage.php` 注释
+
+### COS 同步架构修正
+
+- **问题**：上次重构将 COS 同步从 daemon 移到了 Web API（`trigger_cos_sync`），但 php 容器没有 addons 卷挂载，`cos_batch_upload()` 的 `file_exists()` 全部返回 false
+- **修复**：COS 同步回归 task-daemon 容器本地执行，php 容器不再挂载 addons
+  - `task_daemon.php` 新增 `run_cos_sync()` + `process_manual_triggers()`，主循环检查触发文件
+  - `daily_maintenance()` 的 COS 同步改为本地调用，不再走 HTTP API
+  - `map_manage.php` 的 `trigger_cos_sync` action 改为写入触发文件（`LOG_DIR/.trigger_cos_sync`）
+  - task-daemon 容器恢复 COS 环境变量 + 新增 `./web/src/static:/var/www/html/static:ro`（供 `cos_sync_index` 读模板）
+- addons 卷只有 task-daemon 挂载（rw，下载 vpk 需要写），php 容器不再挂载
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `docker-compose.yml` | 修改（php 去 addons 挂载；task-daemon +COS 变量 +static 挂载；downloader → task-daemon） |
+| `task-daemon/` | 重命名（原 `downloader/`） |
+| `task-daemon/entrypoint.sh` | 修改（系统用户名） |
+| `web/src/task_daemon.php` | 修改（+run_cos_sync、+process_manual_triggers、daily_maintenance 改为本地调用） |
+| `web/src/api/map_manage.php` | 修改（trigger_cos_sync 改为写入触发文件） |
+| `web/src/static/js/custom/map_manage.js` | 修改（triggerCosSync UI 文案适配异步） |
+| `sidecar/server.php` | 修改（容器白名单） |
+| `sidecar/Dockerfile` | 修改（默认白名单） |
+| `base-php/Dockerfile.cli` | 修改（注释） |
+| `README.md` | 修改（服务名 + 架构图 + 环境变量表 + 目录结构） |
+| `test/script/healthcheck.sh` | 修改（容器名引用） |
+| `test/script/auto_cos.sh` | 修改（容器名引用） |
+| `test/script/auto_logrotate.sh` | 修改（提示文字） |
+| `CHANGELOG.md` | 修改 |
+
 ## 2026-07-11 — COS 目录浏览 + 任务守护重构 + 管理端手动触发
 
 ### COS 静态网站文件浏览器

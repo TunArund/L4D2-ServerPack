@@ -2,7 +2,7 @@
 include_once 'tools.php';
 header('Content-Type: application/json');
 
-// 认证：内部服务调用（downloader daemon 每日更新）可通过 token 绕过登录
+// 认证：内部服务调用（task-daemon 每日更新）可通过 token 绕过登录
 $sidcar_token = getenv('SIDECAR_TOKEN') ?: '';
 $api_token    = $_GET['token'] ?? '';
 $is_internal  = ($sidcar_token !== '' && hash_equals($sidcar_token, $api_token));
@@ -273,18 +273,18 @@ switch($action){
     ]);
   exit;
   case 'trigger_cos_sync':
-    include_once API_DIR . 'cos_client.php';
-    if (!cos_configured()) json_error('COS 未配置，请检查 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量');
+    // 写入触发文件，由 task-daemon 轮询执行（daemon 有 addons 卷挂载）
+    if (getenv('COS_SECRET_ID') === '' || getenv('COS_SECRET_KEY') === '' || getenv('COS_BUCKET') === '') {
+        json_error('COS 未配置，请检查 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量');
+    }
 
-    $upload  = cos_batch_upload($pdo);
-    $index   = cos_sync_index();
-    $cleanup = cos_cleanup_orphans($pdo);
+    $trigger_file = LOG_DIR . '.trigger_cos_sync';
+    if (@file_put_contents($trigger_file, date('c')) === false) {
+        json_error('无法写入触发文件，请检查 LOG_DIR 权限');
+    }
 
     json_success([
-      'message' => "COS 同步完成：上传 {$upload['uploaded']} 跳过 {$upload['skipped']} 失败 {$upload['failed']} | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个",
-      'upload'  => $upload,
-      'index'   => $index,
-      'cleanup' => $cleanup,
+      'message' => '已加入同步队列，daemon 将在下次轮询时执行（最长等待 ' . ($_ENV['DAEMON_INTERVAL'] ?? 5) . ' 秒）',
     ]);
   exit;
   case 'count':
