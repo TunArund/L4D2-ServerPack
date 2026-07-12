@@ -30,6 +30,37 @@ printHeader("下载任务监控", $additions);
     <?php printNavbar('dashboard'); ?>
 
     <div class="container-fluid">
+        <!-- 下载任务 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold fs-5">下载任务</span>
+                <small class="text-muted" id="download-update">最后更新: --</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-info bg-opacity-25">等待中</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-waiting"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-warning bg-opacity-25">下载中</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-downloading"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-success bg-opacity-25">成功</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-success"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
+                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-fail"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- COS 上传任务 -->
         <div class="card shadow-sm mb-3">
@@ -57,38 +88,6 @@ printHeader("下载任务监控", $additions);
                     <div class="col-md-3">
                         <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-fail"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 下载任务 -->
-        <div class="card shadow-sm mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-bold fs-5">下载任务</span>
-                <small class="text-muted" id="download-update">最后更新: --</small>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <div class="card bg-light"><div class="card-header fw-bold bg-info bg-opacity-25">等待中</div>
-                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-waiting"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light"><div class="card-header fw-bold bg-warning bg-opacity-25">下载中</div>
-                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-downloading"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light"><div class="card-header fw-bold bg-success bg-opacity-25">成功</div>
-                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-success"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
-                            <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-fail"></div>
                         </div>
                     </div>
                 </div>

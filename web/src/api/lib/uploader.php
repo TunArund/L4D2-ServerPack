@@ -109,10 +109,12 @@ function process_upload_task(PDO $pdo, array $task): array {
 
     if ($res['success']) {
         $pdo->prepare("UPDATE tasks SET status='success', processed_bytes=total_bytes WHERE id=?")->execute([$task_id]);
-        try {
-            $stmt = $pdo->prepare("UPDATE maps SET cos_url=?, cos_version=(SELECT version FROM maps WHERE id=?) WHERE id=?");
-            $stmt->execute([$res['data']['url'], $task['map_id'], $task['map_id']]);
-        } catch (PDOException $e) {}
+        // 先查再写，避免 MySQL Error 1093（不能在 UPDATE 子查询中 SELECT 同一张表）
+        $v = $pdo->prepare("SELECT version FROM maps WHERE id=?");
+        $v->execute([$task['map_id']]);
+        $version = $v->fetchColumn();
+        $pdo->prepare("UPDATE maps SET cos_url=?, cos_version=? WHERE id=?")
+            ->execute([$res['data']['url'], $version, $task['map_id']]);
         return array_success("上传成功");
     } else {
         $pdo->prepare("UPDATE tasks SET status='fail' WHERE id=?")->execute([$task_id]);
