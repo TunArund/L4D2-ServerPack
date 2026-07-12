@@ -118,13 +118,12 @@ function update_map($pdo, $id, $install = true){
   if(!$steam_info) return array_error('未能通过steamworshop api查到steam中的地图信息');
   //检查版本若地图active+本地版本不小于steam的，则记录已经为最新
   if($version >= $steam_info['version'] && $status == 'active') return array_error("$title 版本已为最新。");
-  //更新maps表
-  $stmt = $pdo->prepare("UPDATE maps SET version=?,downlink=?,size=?,disk_safe=?,title=?,preview_url=?,description=?,subscriptions=? WHERE id = ?");
+  //更新maps表（不更新 disk_safe：保留 build_map_request() 设置的 steam_id）
+  $stmt = $pdo->prepare("UPDATE maps SET version=?,downlink=?,size=?,title=?,preview_url=?,description=?,subscriptions=? WHERE id = ?");
   $result = exec_stmt($stmt,
     $steam_info['version'],
     $steam_info['downlink'],
     $steam_info['size'],
-    $steam_info['disk_safe'],
     $steam_info['title'],
     $steam_info['preview_url'],
     $steam_info['description'],
@@ -139,7 +138,9 @@ function update_map($pdo, $id, $install = true){
     if(!$result['success']) return array_error('更新前删除地图文件失败'.$result['message']);
     //再添加下载任务
     include_once 'lib/downloader.php';
-    $result = add_download_task($pdo,$steam_info['downlink'],$steam_info['disk_safe'],$id);
+    // 使用 DB 中已有的 disk_safe (steam_id)，避免被 API 英文标题覆盖
+    $disk_safe = $row['disk_safe'] ?: $row['steam_id'];
+    $result = add_download_task($pdo, $steam_info['downlink'], $disk_safe, $id);
     if(!$result['success']) return array_error('添加下载任务失败'.$result['message']);
     //添加下载任务成功，更新状态为updating
     $stmt = $pdo->prepare("UPDATE maps SET status='updating' WHERE id = ?");

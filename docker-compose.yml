@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile.fpm
       args:
         APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
+        TZ: ${TZ:-Asia/Shanghai}
     image: ${REGISTRY}l4d2-base-php-fpm:latest
     profiles:
       - build
@@ -19,6 +20,7 @@ services:
       dockerfile: Dockerfile.cli
       args:
         APK_MIRROR: ${APK_MIRROR:-mirrors.aliyun.com}
+        TZ: ${TZ:-Asia/Shanghai}
     image: ${REGISTRY}l4d2-base-php-cli:latest
     profiles:
       - build
@@ -52,11 +54,11 @@ services:
   nginx:
     build:
       context: ./nginx
+      args:
+        TZ: ${TZ:-Asia/Shanghai}
     image: ${REGISTRY}l4d2-nginx:latest
     container_name: l4d2-nginx
     restart: unless-stopped
-    environment:
-      TZ: ${TZ:-Asia/Shanghai}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -86,7 +88,6 @@ services:
     container_name: l4d2-php
     restart: unless-stopped
     environment:
-      TZ: ${TZ:-Asia/Shanghai}
       DB_HOST: mysql
       DB_DATABASE: ${MYSQL_DATABASE}
       DB_USER: ${MYSQL_USER}
@@ -123,7 +124,6 @@ services:
     container_name: l4d2-task-daemon
     restart: unless-stopped
     environment:
-      TZ: ${TZ:-Asia/Shanghai}
       APP_UID: ${APP_UID:-1000}
       APP_GID: ${APP_GID:-1000}
       DB_HOST: mysql
@@ -163,7 +163,6 @@ services:
     container_name: l4d2-sidecar
     restart: unless-stopped
     environment:
-      TZ: ${TZ:-Asia/Shanghai}
       ALLOWED_CONTAINERS: ${ALLOWED_CONTAINERS:-l4d2-task-daemon,l4d2-coop,l4d2-versus,l4d2-php,l4d2-mysql,l4d2-glances,l4d2-nginx}
       RESTARTABLE_CONTAINERS: ${RESTARTABLE_CONTAINERS:-l4d2-task-daemon,l4d2-coop,l4d2-versus}
       SIDECAR_TOKEN: ${SIDECAR_TOKEN:-}

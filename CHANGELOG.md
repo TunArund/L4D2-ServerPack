@@ -16,8 +16,11 @@
 
 - **问题**：PHP 容器使用 UTC（差 8 小时），`date.timezone` 未设置，日志时间与宿主机不一致
 - **修复**：
-  - `base-php/Dockerfile.cli` + `base-php/Dockerfile.fpm`：安装 `tzdata` + 写入 `/usr/local/etc/php/conf.d/timezone.ini`
-  - `docker-compose.yml`：mysql/nginx/php/task-daemon/sidecar 注入 `TZ: ${TZ:-Asia/Shanghai}`（游戏服和 glances 无需关注时区）
+  - `base-php/Dockerfile.cli` + `base-php/Dockerfile.fpm`：安装 `tzdata` + `ARG TZ` → `ENV TZ` 烘焙进镜像 + 写入 `/usr/local/etc/php/conf.d/timezone.ini`
+  - `nginx/Dockerfile`：`ARG TZ` → `ENV TZ` 烘焙进镜像
+  - `docker-compose.yml`：`base-php-*` 和 `nginx` 的 `build.args` 传入 `TZ: ${TZ:-Asia/Shanghai}`，从 `.env` 读取
+  - `mysql` 保留运行时 `TZ`（外部镜像无法修改 Dockerfile）
+  - 游戏服和 glances 不注 TZ（无需关注时区）
 
 ### 涉及文件
 
@@ -25,9 +28,11 @@
 |------|------|
 | `web/src/api/lib/downloader.php` | 修改（include 路径） |
 | `web/src/api/tools.php` | 修改（conn_db 去静态缓存） |
-| `base-php/Dockerfile.cli` | 修改（+tzdata +php timezone.ini） |
-| `base-php/Dockerfile.fpm` | 修改（+tzdata +php timezone.ini） |
-| `docker-compose.yml` | 修改（mysql/nginx/php/task-daemon/sidecar +TZ） |
+| `base-php/Dockerfile.cli` | 修改（+tzdata +ARG TZ +ENV TZ +php timezone.ini） |
+| `base-php/Dockerfile.fpm` | 修改（+tzdata +ARG TZ +ENV TZ +php timezone.ini） |
+| `nginx/Dockerfile` | 修改（+ARG TZ +ENV TZ） |
+| `docker-compose.yml` | 修改（base-php/nginx build.args +TZ；mysql runtime TZ；其余容器去 TZ） |
+| `.env.example` | 修改（+TZ 变量） |
 | `CHANGELOG.md` | 修改 |
 
 ## 2026-07-11 — 服务重命名 + COS 同步架构修正

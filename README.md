@@ -43,6 +43,7 @@ APP_GID=1000
 | 变量 | 服务 | 说明 |
 |------|------|------|
 | `REGISTRY` | 全部 | 镜像前缀。开发留空，生产设 `ghcr.io/<user>/` |
+| `TZ` | nginx, php, task-daemon, sidecar (构建时) / mysql (运行时) | 容器时区，默认 `Asia/Shanghai` |
 | `MYSQL_ROOT_PASSWORD` | mysql | root 密码 |
 | `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD` | mysql, php, task-daemon | 数据库 |
 | `APP_UID` / `APP_GID` | php, task-daemon, l4d2 | 文件权限，**必须与游戏文件 owner 一致** |
