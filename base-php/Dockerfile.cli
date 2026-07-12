@@ -23,4 +23,5 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps
 
 ARG TZ=Asia/Shanghai
+ENV TZ=${TZ}
 RUN echo "date.timezone = ${TZ}" > /usr/local/etc/php/conf.d/timezone.ini
