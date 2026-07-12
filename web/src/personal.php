@@ -245,10 +245,10 @@ function printMapManage()
 {
 	$card_tag = <<<HTML
 		<div class="mb-2 d-flex flex-wrap gap-2">
-			<button type="button" class="btn btn-outline-primary btn-sm" data-action="triggerUpdateAll">
+			<button type="button" class="btn btn-primary btn-sm" data-action="triggerUpdateAll">
 				<i class="bi bi-arrow-repeat me-1"></i>检查更新
 			</button>
-			<button type="button" class="btn btn-outline-info btn-sm" data-action="triggerCosSync">
+			<button type="button" class="btn btn-info btn-sm" data-action="triggerCosSync">
 				<i class="bi bi-cloud-arrow-up me-1"></i>COS 同步
 			</button>
 			<span id="trigger-status" class="text-muted small align-self-center"></span>
