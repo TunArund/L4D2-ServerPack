@@ -181,8 +181,9 @@ function process_manual_triggers(PDO $pdo): void {
  *
  * 调度优先级：
  *   1. download waiting     ← 新下载任务
- *   2. download downloading ← 中断续传
- *   3. upload waiting       ← 下载全完成后才处理上传
+ *   2. download downloading ← 下载中断续传
+ *   3. upload waiting       ← 新上传任务
+ *   4. upload uploading     ← 上传中断恢复（daemon 强制重启后）
  */
 function fetch_next_task(PDO $pdo): ?array {
     // 1. download waiting
@@ -195,6 +196,10 @@ function fetch_next_task(PDO $pdo): ?array {
 
     // 3. upload waiting
     $result = $pdo->query("SELECT * FROM tasks WHERE type='upload' AND status='waiting' ORDER BY id ASC LIMIT 1");
+    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+
+    // 4. upload uploading（中断恢复：daemon 强制重启后重新处理卡死的上传任务）
+    $result = $pdo->query("SELECT * FROM tasks WHERE type='upload' AND status='uploading' ORDER BY id ASC LIMIT 1");
     if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
 
     return null;
