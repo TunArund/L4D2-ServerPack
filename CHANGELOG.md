@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## 2026-07-12 — Bug 修复：include 路径 + DB 重连 + 时区
+
+### downloader.php include 路径修复
+
+- **问题**：`api/lib/downloader.php` 使用 `include_once 'tools.php'` 裸文件名，PHP 在 CWD 和 include_path 中查找，找不到 `/var/www/html/api/tools.php`，输出 Warning
+- **修复**：改为 `include_once __DIR__ . '/../tools.php'`，相对于文件自身目录解析
+
+### conn_db() 死连接缓存修复
+
+- **问题**：`conn_db()` 内部 `static $pdo` 在 MySQL 重启后仍返回旧 PDO 对象（`instanceof PDO` 为 true），`safe_execute()` 和 `ensure_db_alive()` 的重连逻辑永远拿到死连接，无法恢复
+- **修复**：移除 `static` 缓存和 `ATTR_PERSISTENT`，每次调用创建新连接，让重连逻辑真正生效
+
+### 容器时区修正
+
+- **问题**：PHP 容器使用 UTC（差 8 小时），`date.timezone` 未设置，日志时间与宿主机不一致
+- **修复**：
+  - `base-php/Dockerfile.cli` + `base-php/Dockerfile.fpm`：安装 `tzdata` + 写入 `/usr/local/etc/php/conf.d/timezone.ini`
+  - `docker-compose.yml`：mysql/nginx/php/task-daemon/sidecar 注入 `TZ: ${TZ:-Asia/Shanghai}`（游戏服和 glances 无需关注时区）
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/src/api/lib/downloader.php` | 修改（include 路径） |
+| `web/src/api/tools.php` | 修改（conn_db 去静态缓存） |
+| `base-php/Dockerfile.cli` | 修改（+tzdata +php timezone.ini） |
+| `base-php/Dockerfile.fpm` | 修改（+tzdata +php timezone.ini） |
+| `docker-compose.yml` | 修改（mysql/nginx/php/task-daemon/sidecar +TZ） |
+| `CHANGELOG.md` | 修改 |
+
 ## 2026-07-11 — 服务重命名 + COS 同步架构修正
 
 ### `downloader` 服务 → `task-daemon`

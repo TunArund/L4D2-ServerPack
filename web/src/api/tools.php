@@ -86,17 +86,13 @@ function check_admin(){
 }
 function conn_db(){
     // 数据库连接 —— 全部从环境变量读取，方便 CI/CD 配置
-    static $pdo = null;
-    if($pdo !== null && $pdo instanceof PDO){
-        return $pdo;
-    }
+    // 不使用 static 缓存：断连后 safe_execute / ensure_db_alive 需要重新创建连接
     try {
         $pdo = new PDO(
           "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME,
           DB_USER,
           DB_PASS,
           [
-            PDO::ATTR_PERSISTENT => true,       // 启用持久连接
             PDO::ATTR_TIMEOUT => 30,          // 设置超时时间30秒
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // 设置错误模式为异常
           ]
