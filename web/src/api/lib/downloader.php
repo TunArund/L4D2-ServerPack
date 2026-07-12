@@ -2,7 +2,7 @@
 // 统一任务表 — tasks
 //   type: 'download' (src=SteamURL → dst=本地.vpk) | 'upload' (src=本地.vpk → dst=COS key)
 //   status: waiting → downloading/uploading → success/fail
-include_once 'tools.php';
+include_once __DIR__ . '/../tools.php';
 
 function safe_execute(PDO &$pdo, string $query, array $params = [], int $retry = 3)
 {

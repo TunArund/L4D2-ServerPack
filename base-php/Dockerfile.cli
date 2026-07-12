@@ -17,6 +17,10 @@ RUN apk add --no-cache --virtual .build-deps \
         libpng \
         libjpeg-turbo \
         freetype \
+        tzdata \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd mysqli pdo pdo_mysql pcntl \
     && apk del .build-deps
+
+ARG TZ=Asia/Shanghai
+RUN echo "date.timezone = ${TZ}" > /usr/local/etc/php/conf.d/timezone.ini
