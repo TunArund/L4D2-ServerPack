@@ -127,7 +127,7 @@ cmd_build() {
     echo ">>> 本地构建 (REGISTRY=${registry:-空}) ..."
 
     # 动态发现外部基础镜像（仅扫描项目子目录，排除 mysql/data 等数据目录）
-    echo "  [0/3] 预拉取基础镜像 ..."
+    echo "  [1/3] 预拉取基础镜像 ..."
     local base_images=()
     while IFS= read -r img; do
         [[ -n "$img" ]] && base_images+=("$img")
@@ -155,21 +155,21 @@ cmd_build() {
         echo "    (未发现外部基础镜像，跳过)"
     fi
 
+    # 先构建 base-php 基础镜像（profiles: build 不会被默认构建）
+    echo "  [2/3] 构建基础镜像 (base-php-fpm / base-php-cli) ..."
+    REGISTRY="$registry" docker compose --profile build build base-php-fpm base-php-cli
+
     # 构建所有带 build 上下文的服务（BuildKit 自动按依赖顺序）
-    echo "  [1/2] 构建镜像 ..."
+    echo "  [3/3] 构建应用镜像 ..."
     REGISTRY="$registry" docker compose build
 
-    # 拉取仅有 image 的服务 (mysql:8.0 ~800MB, glances, 首次较慢)
-    echo "  [2/2] 拉取外部服务镜像 (mysql:8.0 ~800MB，首次可能需数分钟) ..."
-    docker compose pull || true
-
     echo ""
-    echo ">>> 构建完成，执行 ./docker.sh up 启动"
+    echo ">>> 构建完成，执行 ./docker.sh up 启动（首次自动拉取 mysql:8.0 等外部镜像）"
 }
 
 cmd_up() {
     ensure_docker
-    echo ">>> 启动服务 ..."
+    echo ">>> 启动服务（首次会自动拉取外部镜像，可能需数分钟）..."
     docker compose up -d --remove-orphans "$@"
     docker compose ps
 }

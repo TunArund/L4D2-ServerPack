@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/config.php';
 // 限制只能通过命令行访问
 if (php_sapi_name() !== 'cli') {
     die('此脚本只能通过命令行运行');
@@ -8,9 +9,10 @@ set_time_limit(0);
 ignore_user_abort(true);
 gc_enable();
 
-include_once 'api/tools.php';
-include_once 'api/lib/downloader.php';
-include_once 'api/lib/uploader.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'db.php';
+include_once LIB_DIR . 'download.php';
+include_once LIB_DIR . 'upload.php';
 
 // ============================================================
 // 运行时配置
@@ -18,15 +20,19 @@ include_once 'api/lib/uploader.php';
 define('DAEMON_LOG', LOG_DIR . 'task_daemon.log');   // 基路径 → app/YYYY/MM/DD.log
 
 $file_dir     = MAP_DIR;
-$daily_log    = daily_log_path(DAEMON_LOG);          // 当日实际文件，供 fopen / error_log 直接写入
 $interval     = 5;       // 空闲时任务轮询间隔（秒）
 $update_hour  = 3;       // 每日维护执行时刻
 $update_mark  = LOG_DIR . '.daily_update';           // 防重启重复执行
 $web_host     = getenv('WEB_HOST') ?: 'nginx';
 $sider_token  = getenv('SIDECAR_TOKEN') ?: '';
 
-ini_set('log_errors', 1);
-ini_set('error_log', $daily_log);
+/**
+ * 刷新 PHP error_log 指向当日文件（主循环周期性调用，保证跨日轮转）
+ */
+function refresh_error_log(): void {
+    ini_set('error_log', daily_log_path(DAEMON_LOG));
+}
+refresh_error_log();
 
 // ============================================================
 // 信号处理（优雅退出）
@@ -44,25 +50,36 @@ pcntl_signal(SIGTERM, function () use (&$running) {
 /**
  * 调用 map_manage.php API 并解析 JSON 响应
  *
- * @return array|null 解析后的 response body，失败时返回 null
+ * @return array 始终包含 success 键：
+ *               成功 → ['success' => true,  'data' => <response body>]
+ *               失败 → ['success' => false, 'error' => 'connect'|'http'|'json', 'detail' => ...]
  */
-function call_api(string $web_host, string $token, string $action): ?array {
+function call_api(string $web_host, string $token, string $action): array {
     $url = "http://{$web_host}/api/map_manage.php?action=" . urlencode($action);
     if ($token !== '') {
         $url .= '&token=' . urlencode($token);
     }
 
-    $response = @file_get_contents($url);
+    $ctx = stream_context_create(['http' => ['timeout' => 30, 'ignore_errors' => true]]);
+    $response = @file_get_contents($url, false, $ctx);
+
     if ($response === false) {
-        return null;
+        $err = error_get_last();
+        return array_error('connect: ' . ($err['message'] ?? 'unknown'));
+    }
+
+    // 检查 HTTP 状态码（通过 $http_response_header 魔术变量）
+    $status_line = $http_response_header[0] ?? '';
+    if (!preg_match('#^HTTP/\d\.\d\s+2\d\d#', $status_line)) {
+        return array_error('http: ' . $status_line);
     }
 
     $result = json_decode($response, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        return null;
+        return array_error('json: ' . json_last_error_msg());
     }
 
-    return $result;
+    return array_success($result);
 }
 
 /**
@@ -84,7 +101,7 @@ function ensure_db_alive(&$pdo, int $retry_interval): void {
  * 仅在凌晨指定小时执行一次（持久化标记文件防重启重复）。
  * 所有实际操作通过 map_manage.php API 端点完成，daemon 自身只做编排和日志。
  */
-function daily_maintenance(string $web_host, string $token, int $update_hour, string $mark_file): void {
+function daily_maintenance(PDO $pdo, string $web_host, string $token, int $update_hour, string $mark_file): void {
     $current_date = date('Y-m-d');
     $current_hour = (int) date('H');
     $last_mark    = @file_get_contents($mark_file);
@@ -95,17 +112,17 @@ function daily_maintenance(string $web_host, string $token, int $update_hour, st
 
     @file_put_contents($mark_file, $current_date);
 
-    // ---- 1. 地图更新（复用 map_manage.php?action=trigger_update_all） ----
+    // ---- 1. 地图更新（复用 map_manage.php?action=update_all） ----
     add_log(DAEMON_LOG, 1, '=== Daily map update ===');
 
-    $result = call_api($web_host, $token, 'trigger_update_all');
+    $result = call_api($web_host, $token, 'update_all');
 
-    if ($result === null) {
-        add_log(DAEMON_LOG, 3, "Daily update API unreachable: {$web_host}");
-    } elseif (!empty($result['success'])) {
-        add_log(DAEMON_LOG, 1, 'Daily update done: ' . ($result['data']['message'] ?? 'OK'));
+    if (!$result['success']) {
+        add_log(DAEMON_LOG, 3, "Daily update API {$result['message']}: {$web_host}");
+    } elseif (!empty($result['data']['success'])) {
+        add_log(DAEMON_LOG, 1, 'Daily update done: ' . ($result['data']['data']['message'] ?? 'OK'));
     } else {
-        add_log(DAEMON_LOG, 2, 'Daily update failed: ' . ($result['message'] ?? 'unknown'));
+        add_log(DAEMON_LOG, 2, 'Daily update failed: ' . ($result['data']['message'] ?? 'unknown'));
     }
 
     // ---- 2. COS 同步（本地直接执行，不经过 HTTP API） ----
@@ -140,7 +157,7 @@ function run_cos_sync(PDO $pdo): array {
         'success' => true,
         'data'    => [
             'message' => $message,
-            'upload'  => $upload,
+            'upload'  => $tasks,
             'index'   => $index,
             'cleanup' => $cleanup,
         ],
@@ -153,7 +170,7 @@ function run_cos_sync(PDO $pdo): array {
  * 触发文件位于 LOG_DIR 根，由 Web API 写入，daemon 处理完后删除。
  */
 function process_manual_triggers(PDO $pdo): void {
-    $trigger_file = LOG_DIR . '.trigger_cos_sync';
+    $trigger_file = LOG_DIR . '.cos_sync';
 
     if (!file_exists($trigger_file)) {
         return;
@@ -206,11 +223,11 @@ function fetch_next_task(PDO $pdo): ?array {
 }
 
 /**
- * 获取并处理一个任务（抢占式：download > upload）
+ * 获取并处理一个任务（非抢占式：download > upload）
  *
  * @return bool true=处理了一个任务, false=无待处理任务
  */
-function process_next_task(PDO $pdo, string $file_dir, string $daily_log): bool {
+function process_next_task(PDO $pdo, string $file_dir, string $log_file): bool {
     $task = fetch_next_task($pdo);
     if (!$task) {
         return false;
@@ -227,34 +244,42 @@ function process_next_task(PDO $pdo, string $file_dir, string $daily_log): bool 
         }
     } else {
         add_log(DAEMON_LOG, 1, "Downloading {$task['disk_safe']} from {$task['src']}");
-        $result = download_with_progress($pdo, $task, $file_dir, $daily_log);
+        $result = download_with_progress($pdo, $task, $file_dir, $log_file);
 
         if ($result['success']) {
             add_log(DAEMON_LOG, 1, "Download ok: {$task['disk_safe']}");
-            downlaod_success_callback($pdo, $task);
+            download_success_callback($pdo, $task);
         } else {
             add_log(DAEMON_LOG, 2, "Download fail: {$task['disk_safe']} — {$result['message']}");
-            downlaod_fail_callback($pdo, $task);
+            download_fail_callback($pdo, $task);
         }
     }
 
     return true;
 }
 
+$pdo = conn_db();
+add_log(DAEMON_LOG, 1, '=== Task daemon started ===');
+$last_log_date = date('Y-m-d');
 // ============================================================
 // 主循环
 // ============================================================
-$pdo = conn_db();
-add_log(DAEMON_LOG, 1, '=== Task daemon started ===');
-
 while ($running) {
+    $today = date('Y-m-d');
+    if ($today !== $last_log_date) {
+        refresh_error_log();
+        $last_log_date = $today;
+    }
+
     ensure_db_alive($pdo, $interval);
-    daily_maintenance($web_host, $sider_token, $update_hour, $update_mark);
+    daily_maintenance($pdo, $web_host, $sider_token, $update_hour, $update_mark);
     process_manual_triggers($pdo);
 
-    if (!process_next_task($pdo, $file_dir, $daily_log)) {
+    if (!process_next_task($pdo, $file_dir, daily_log_path(DAEMON_LOG))) {
         sleep($interval);
     }
 }
-
+// ============================================================
+// 主循环
+// ============================================================
 add_log(DAEMON_LOG, 1, '=== Task daemon stopped ===');

@@ -1,6 +1,8 @@
 <?php
+include_once __DIR__ . '/config.php';
 //登录验证
-include_once 'api/tools.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 include_once 'navbar.php';
 if (!check_login()) {
 	header('Location: /api/login.php?return_url=/personal.php');

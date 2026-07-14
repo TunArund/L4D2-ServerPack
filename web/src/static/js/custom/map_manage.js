@@ -334,7 +334,7 @@ async function triggerUpdateAll() {
 	if (!statusEl) return;
 	statusEl.textContent = '⏳ 正在检查所有地图更新…';
 	try {
-		const res = await fetch('/api/map_manage.php?action=trigger_update_all');
+		const res = await fetch('/api/map_manage.php?action=update_all');
 		const data = await res.json();
 		if (data.success) {
 			statusEl.textContent = '✅ ' + data.data.message;
@@ -357,7 +357,7 @@ async function triggerCosSync() {
 	if (!statusEl) return;
 	statusEl.textContent = '⏳ 正在加入同步队列…';
 	try {
-		const res = await fetch('/api/map_manage.php?action=trigger_cos_sync');
+		const res = await fetch('/api/map_manage.php?action=cos_sync');
 		const data = await res.json();
 		if (data.success) {
 			statusEl.textContent = '📨 ' + data.data.message;
