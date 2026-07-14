@@ -1,5 +1,7 @@
 <?php
-include_once 'api/tools.php';
+include_once __DIR__ . '/config.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 include_once 'navbar.php';
 # POST 处理评论（session 已在 navbar.php 中启动）
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {

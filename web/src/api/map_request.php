@@ -1,13 +1,15 @@
 <?php
-include_once 'tools.php';
+include_once __DIR__ . '/../config.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 header('Content-Type: application/json');
 //检查登录
 if (!check_login()) json_error('请先登录。');
-//设置报错日志
+//设置报错日志（按日轮转）
 ini_set('log_errors', 1);
-ini_set('error_log', '../logs/map_request_error.log');
+ini_set('error_log', daily_log_path(LOG_DIR . 'map_request_error.log'));
 //包含工具函数
-include_once 'map_request_tools.php';
+include_once LIB_DIR . 'map.php';
 
 //POST获取json_encode(['ids'=>[1,2,3]]),逐个检查
 function post_ids()
@@ -101,7 +103,7 @@ function add_request($pdo, $user_id, $steam_id)
 	}
 }
 
-include_once 'lib/downloader.php';
+include_once LIB_DIR . 'download.php';
 /**
  * 批准逻辑,根据申请从maps表获取下载信息，添加下载任务
  */

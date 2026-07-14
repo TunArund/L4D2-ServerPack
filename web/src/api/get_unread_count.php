@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/../config.php';
 session_start();
 header('Content-Type: application/json');
 
@@ -9,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-require_once 'tools.php';
+require_once LIB_DIR . 'core.php';
 $pdo = conn_db();
 $uid = intval($_SESSION['user_id']);
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE user_id = ? AND is_read = 0");

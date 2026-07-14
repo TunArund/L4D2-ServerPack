@@ -1,7 +1,9 @@
 <?php
+include_once __DIR__ . '/../config.php';
 // 统一任务查询 API — tasks 表
 // POST { status, count, type? }   type 默认 'download'，传 'upload' 查 COS 上传任务
-include_once 'tools.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 header('Content-Type: application/json');
 
 $json = file_get_contents('php://input');

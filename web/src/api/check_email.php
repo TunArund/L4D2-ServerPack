@@ -1,8 +1,10 @@
 <?php
+include_once __DIR__ . '/../config.php';
 //生成验证码、发邮件、存数据库
 //by:TunArund
 //at:2025.2.1
-include_once 'tools.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 header('Content-Type: application/json');
 // 确保任何 PHP 错误都不会污染 JSON
 ini_set('display_errors', 0);
@@ -65,7 +67,7 @@ if($result!=true){
   exit;
 }
 //发邮件
-include_once 'check_email_tools.php';
+include_once LIB_DIR . 'email.php';
 $response = sendEmail($email,$vericode,$expire,$last_time);//有效时间默认10分钟
 $result = json_decode($response,true);
 $success = isset($result['Response']['MessageId']);

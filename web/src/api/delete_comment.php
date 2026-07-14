@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/../config.php';
 session_start();
 
 // 检查用户是否登录且角色为管理员
@@ -8,7 +9,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment_id = $_POST['comment_id'];
-    include_once 'tools.php';
+    include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
     $pdo = conn_db();
     try {
         $stmt = $pdo->prepare("DELETE FROM comments WHERE id = :comment_id");

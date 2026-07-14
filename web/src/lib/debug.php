@@ -4,13 +4,15 @@ if (php_sapi_name() != 'cli') {
     die('This script can only be run from the command line.');
 }
 
-include_once 'tools.php';
-include_once 'map_request_tools.php';
+include_once __DIR__ . '/core.php';
+include_once __DIR__ . '/db.php';
+include_once __DIR__ . '/map.php';
+include_once __DIR__ . '/steam.php';
 
 $log_file = LOG_DIR.'debug.log';// 手动日志文件
 define('WEB_HOST', getenv('WEB_HOST') ?: 'nginx');
 ini_set('log_errors', 1);//报错日志
-ini_set('error_log', LOG_DIR.'debug.log');//设置报错日志
+ini_set('error_log', daily_log_path(LOG_DIR . 'debug.log'));//设置报错日志（按日轮转）
 
 function update_maps_steam_id($pdo){
   $stmt = $pdo->prepare("select id,link from maps;");
@@ -38,7 +40,6 @@ function filter_vpk($file_name){
  * @return array ['success'=>true,'data'=>['disk_safe.vpk','disk_safe2.vpk'] ['success'=>false,'mesasge'=>'MAP_DIR不存在']
  */
 function scan_maps(){
-  include_once API_DIR.'map_request_tools.php';
   //检查MAP_DIR目录是否存在
   if (!is_dir(MAP_DIR)) return array_error('MAP_DIR不存在');
   //MAP_DIR搜索现有地图名
@@ -209,7 +210,7 @@ function update_subscriptions($pdo){
     ]);
   }
 }
-include 'check_email_tools.php';
+include_once __DIR__ . '/email.php';
 //$pdo=conn_db();
 //update_subscriptions($pdo);
 function update_map_all($log_file){

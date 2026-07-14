@@ -1,6 +1,8 @@
 <?php
+include_once __DIR__ . '/config.php';
 include_once 'navbar.php';
-include_once 'api/tools.php';
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 $isAdmin = check_admin();
 $sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 ?>

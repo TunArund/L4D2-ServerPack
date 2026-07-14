@@ -1,6 +1,7 @@
 <?php
-define('SES_SECRET_ID',  getenv('SES_SECRET_ID')  ?: '');
-define('SES_SECRET_KEY', getenv('SES_SECRET_KEY') ?: '');
+// ============================================================
+// 邮箱验证码
+// ============================================================
 
 function sign($key, $msg)
 {

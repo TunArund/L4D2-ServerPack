@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/config.php';
 include_once 'navbar.php';
 function get_map_count($pdo, $map_name)
 {
@@ -320,7 +321,7 @@ printHeader('评分板', $additons);
 <body>
   <?php
   printNavbar('billboard');
-  include_once 'api/tools.php'; // 引入工具函数
+  include_once LIB_DIR . 'core.php'; // 引入工具函数
   $pdo = conn_db(); // 连接数据库（PDO 防注入）
   $page_num = get_GET('page_num', 1, 1);
   $page_size = get_GET('page_size', 1, 24);

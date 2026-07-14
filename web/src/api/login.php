@@ -1,8 +1,9 @@
 <?php
+include_once __DIR__ . '/../config.php';
 
 // 处理登录请求
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-	include_once 'tools.php';
+	include_once LIB_DIR . 'core.php';
 	$pdo = conn_db();
 	$username = get_POST('username');
 	$password = get_POST('password');

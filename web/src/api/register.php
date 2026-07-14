@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/../config.php';
 function register($pdo, $username, $email, $password, $role)
 {
   try {
@@ -17,7 +18,7 @@ $username = '';
 $email = '';
 $password = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  include_once 'tools.php'; // 包含数据库连接代码
+  include_once LIB_DIR . 'core.php'; // 包含数据库连接代码
   $username = htmlspecialchars($_POST['username']);
   $email = htmlspecialchars($_POST['email']);
   $password = get_POST('password',0,false);

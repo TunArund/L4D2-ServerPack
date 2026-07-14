@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/../config.php';
 session_start();
 header('Content-Type: application/json');
 
@@ -8,7 +9,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-require_once 'tools.php';
+require_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 $pdo = conn_db();
 $uid = intval($_SESSION['user_id']);
 $limit = (int) ($_GET['limit'] ?? 5);
