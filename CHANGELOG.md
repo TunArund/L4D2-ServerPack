@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-07-15 — Bug 修复：COS 上传完整性检查缺失
+
+### cos_batch_create_tasks 逻辑漏洞修复
+
+- **问题**：`cos_batch_create_tasks()` 仅查询 `cos_version IS NULL OR cos_version != version` 的地图创建上传任务。对于已标记为"已同步"（`cos_version = version`）的地图，如果 COS 存储桶中对应的 .vpk 文件被意外删除（手动清理、生命周期策略等），系统永远不会为其创建重新上传任务——数据库认为文件还在，实际上已丢失
+- **修复**：函数新增完整性检查阶段：
+  1. 查询所有已同步的地图（`cos_version IS NOT NULL AND cos_version = version`）
+  2. 通过一次 `cos_list_objects()` API 调用获取 COS 上所有 .vpk 文件，构建查找集合（避免对每张地图发 HEAD 请求）
+  3. 交叉比对：COS 上缺失的已同步地图自动加入上传队列
+- 返回值新增 `recovered` 字段（从 COS 缺失恢复的地图数）
+- `run_cos_sync()` 日志消息在 recovered > 0 时显示恢复数量
+- `cos_batch_upload()` 兼容封装同步透传 `recovered`
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/src/lib/upload.php` | 修改（`cos_batch_create_tasks` +完整性检查；`cos_batch_upload` 透传 recovered） |
+| `web/src/task_daemon.php` | 修改（`run_cos_sync` 日志消息含 recovered） |
+
 ## 2026-07-12 — Bug 修复：include 路径 + DB 重连 + 时区
 
 ### downloader.php include 路径修复

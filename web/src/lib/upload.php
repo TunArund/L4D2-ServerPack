@@ -37,9 +37,14 @@ function cos_configured(): bool {
  * 查询 version 有变化的地图，为每个文件创建一条 type='upload' 的任务记录。
  * 实际上传由 task-daemon 的 process_next_task() 逐个执行。
  *
- * @return array ['created' => int, 'skipped' => int]
+ * 同时检查已标记为"已同步"（cos_version = version）的地图：
+ * 如果 COS 存储桶中对应的 .vpk 文件不存在（如被意外删除），
+ * 也会为其创建重新上传任务，防止数据库与 COS 实际状态不一致。
+ *
+ * @return array ['created' => int, 'skipped' => int, 'recovered' => int]
  */
 function cos_batch_create_tasks(PDO $pdo): array {
+    // 1. 查询 version 有变化的地图（常规同步）
     $stmt = $pdo->query(
         "SELECT id, disk_safe, version
          FROM maps
@@ -48,9 +53,46 @@ function cos_batch_create_tasks(PDO $pdo): array {
     );
     $pending = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $created = $skipped = 0;
+    // 2. 查询已同步的地图（完整性检查：COS 上文件可能被意外删除）
+    $stmt2 = $pdo->query(
+        "SELECT id, disk_safe, version
+         FROM maps
+         WHERE status = 'active'
+           AND cos_version IS NOT NULL
+           AND cos_version = version"
+    );
+    $synced = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
-    foreach ($pending as $map) {
+    $created   = 0;
+    $skipped   = 0;
+    $recovered = 0;
+
+    // 合并待上传列表：pending（版本变化）+ synced 中 COS 文件缺失的
+    $to_upload = $pending;
+
+    if (!empty($synced) && cos_configured()) {
+        // 一次 COS List 请求获取所有已有 .vpk 文件，避免 N 次 HEAD 请求
+        $list = cos_list_objects('', '', 1000);
+        $cos_keys = [];
+        if ($list['success']) {
+            foreach ($list['data']['files'] as $file) {
+                if (preg_match('/\.vpk$/i', $file['key'])) {
+                    $cos_keys[basename($file['key'])] = true;
+                }
+            }
+        }
+
+        // 找出 COS 上不存在的"已同步"地图，加入上传队列
+        foreach ($synced as $map) {
+            $filename = $map['disk_safe'] . '.vpk';
+            if (!isset($cos_keys[$filename])) {
+                $to_upload[] = $map;
+                $recovered++;
+            }
+        }
+    }
+
+    foreach ($to_upload as $map) {
         $local_path = MAP_DIR . $map['disk_safe'] . '.vpk';
         $cos_key    = $map['disk_safe'] . '.vpk';
 
@@ -80,7 +122,7 @@ function cos_batch_create_tasks(PDO $pdo): array {
         $created++;
     }
 
-    return ['created' => $created, 'skipped' => $skipped];
+    return ['created' => $created, 'skipped' => $skipped, 'recovered' => $recovered];
 }
 
 /**
@@ -125,7 +167,7 @@ function process_upload_task(PDO $pdo, array $task): array {
 // 兼容旧调用名
 function cos_batch_upload(PDO $pdo): array {
     $result = cos_batch_create_tasks($pdo);
-    return ['uploaded' => 0, 'skipped' => $result['skipped'], 'failed' => 0];
+    return ['uploaded' => 0, 'skipped' => $result['skipped'], 'failed' => 0, 'recovered' => $result['recovered']];
 }
 
 /**
