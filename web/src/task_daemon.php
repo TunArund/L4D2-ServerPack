@@ -151,7 +151,8 @@ function run_cos_sync(PDO $pdo): array {
     $index   = cos_sync_index();
     $cleanup = cos_cleanup_orphans($pdo);
 
-    $message = "COS 同步：已创建 {$tasks['created']} 个上传任务" . ($tasks['skipped'] > 0 ? "（{$tasks['skipped']} 个文件缺失）" : "") . " | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个";
+    $recovered_info = ($tasks['recovered'] ?? 0) > 0 ? "（含 {$tasks['recovered']} 个 COS 文件缺失恢复）" : "";
+    $message = "COS 同步：已创建 {$tasks['created']} 个上传任务{$recovered_info}" . ($tasks['skipped'] > 0 ? "（{$tasks['skipped']} 个文件缺失）" : "") . " | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个";
 
     return [
         'success' => true,

@@ -307,13 +307,17 @@ task-daemon（常驻进程）主循环中检测跨日自动刷新 `ini_set('erro
 | 地图下载后状态不更新 | tasks 回调未执行 | 检查 `task-daemon` 日志 |
 | 文件权限错误 | `APP_UID/GID` 与宿主机不一致 | `id $USER` 查看 UID |
 | API 返回 connect/http/json 错误 | 见 `call_api()` 返回值区分 | 检查 daemon 日志中的具体 error 类型 |
-## 6. Bugs
-- dashboard 第一行卡片car-haeader被悬浮的navbar遮挡
-- dashboard medium屏幕大小 任务显示异常 每条任务仍按三列布局，而不像sm模式换行
-- dashboard 任务信息不详细，预期
-任务名\t时间
+## 6. Todo
+- dashboard
+第一行卡片car-haeader被悬浮的navbar遮挡
+medium屏幕大小 任务显示异常 每条任务仍按三列布局，而不像sm模式换行
+任务信息不详细，预期
+任务名                创建时间
 |已处理大小|处理速度|未处理大小|
 |进度条|处理百分比|进度条|
 |已处理时间||预期剩余时间|
 
-- api中存在数据库表直接操作，应全部抽离封装到lib中
+- api优化
+api中存在数据库表直接操作，应全部抽离封装到lib中
+- 泛用化
+通过.env和config.php 适配不同IP、Brand Name、备案号
