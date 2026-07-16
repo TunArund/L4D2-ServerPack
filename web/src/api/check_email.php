@@ -34,15 +34,18 @@ function checkemail($pdo,$email){
     return true;
 }
 function updatedb($pdo, $email, $vericode, $expire){
-    $select = "SELECT * FROM emails WHERE email = '$email'";
-    $update = "UPDATE emails SET vericode = '$vericode',expire='$expire' WHERE email = '$email'";
-    $insert = "INSERT INTO emails (email, vericode, expire) VALUES ('$email', '$vericode', '$expire')";
     try{
-        $result = $pdo->query($select);
-        if($result->rowCount() > 0)$pdo->exec($update);
-        else $pdo->exec($insert);
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM emails WHERE email = ?");
+        $stmt->execute([$email]);
+        if($stmt->fetchColumn() > 0){
+            $stmt = $pdo->prepare("UPDATE emails SET vericode = ?, expire = ? WHERE email = ?");
+            $stmt->execute([$vericode, $expire, $email]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO emails (email, vericode, expire) VALUES (?, ?, ?)");
+            $stmt->execute([$email, $vericode, $expire]);
+        }
     }catch (PDOException $e){
-        $error_message = $e->getMessage();
+        error_log("updatedb error: " . $e->getMessage());
         return false;
     }
     return true;
@@ -51,6 +54,13 @@ function updatedb($pdo, $email, $vericode, $expire){
 
 
 $pdo = conn_db();
+include_once LIB_DIR . 'auth.php';
+if (!verify_csrf()) {
+	echo json_encode(['success' => false, 'message' => 'CSRF 验证失败，请刷新页面重试。']);
+	exit;
+}
+// 频率限制：每 60 秒最多 1 次（防验证码轰炸）
+rate_limit(1, 60);
 $data = json_decode(file_get_contents('php://input'),true);
 $email = $data['email'] ?? null;
 if(!checkemail($pdo,$email)){

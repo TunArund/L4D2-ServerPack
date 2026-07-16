@@ -124,7 +124,7 @@ printHeader('Game Life', $style);
 			<div class="col-md-9">
 				<div class="tab-content border p-3 bg-light rounded">
 					<div class="tab-pane fade show active" id="pane-oneclick">
-						<h5><a class="btn btn-outline-success" href="steam://connect/82.156.112.164:27015">一键连接</a></h5>
+						<h5><a class="btn btn-outline-success" href="steam://connect/<?= SERVER_CONNECT ?>">一键连接</a></h5>
 						<p>点击按钮自动打开steam-求生之路2并连接服务器：</p>
 						<p>tips：记得先进游戏，等待模组完全加载(附加内容旁的红色圈圈消失)后再点哦！</p>
 					</div>

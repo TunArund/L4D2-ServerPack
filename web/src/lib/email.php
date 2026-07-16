@@ -2,20 +2,24 @@
 // ============================================================
 // 邮箱验证码
 // ============================================================
+include_once __DIR__ . '/../config.php';
 
 function sign($key, $msg)
 {
     return hash_hmac("sha256", $msg, $key, true);
 }
-function sendEmail($destination, $veri_code, $expire_time_str, $valid_time_str = 10, $company_name = 'Tunarund GameLife')
+function sendEmail($destination, $veri_code, $expire_time_str, $valid_time_str = 10, $company_name = null)
 {
     // 实例化一个认证对象，入参需要传入腾讯云账户 SecretId 和 SecretKey，此处还需注意密钥对的保密
     // 代码泄露可能会导致 SecretId 和 SecretKey 泄露，并威胁账号下所有资源的安全性
     // 以下代码示例仅供参考，建议采用更安全的方式来使用密钥
     // 请参见：https://cloud.tencent.com/document/product/1278/85305
     // 密钥可前往官网控制台 https://console.cloud.tencent.com/cam/capi 进行获取
-    $secret_id = SES_SECRET_ID;
-    $secret_key = SES_SECRET_KEY;
+    $secret_id = getenv('SES_SECRET_ID') ?: '';
+    $secret_key = getenv('SES_SECRET_KEY') ?: '';
+    if ($company_name === null) {
+        $company_name = BRAND_COMPANY;
+    }
     $token = "";
     $service = "ses";
     $host = "ses.tencentcloudapi.com";
@@ -29,8 +33,9 @@ function sendEmail($destination, $veri_code, $expire_time_str, $valid_time_str =
         'company_name' => $company_name
     ]; //修改了原payload格式，原来是json格式
 
+    $from_address = BRAND_SITE . ' <noreply@' . BRAND_DOMAIN . '>';
     $params = json_encode([ //对应payload修改，原来是json_decode($payload),后续本来没用上params,现在需要（把下方的两个payload换成params了）
-        "FromEmailAddress" => "TunArund <noreply@tunarund.top>",
+        "FromEmailAddress" => $from_address,
         "Destination" => [$destination],
         "Subject" => "检查你的验证码",
         "Template" => [
@@ -154,13 +159,13 @@ $mailBody = '
 </html>';
 return $mailBody;
 }
-function sendmail($to,$subject= "检查你的验证码", $message){
+function sendmail($to, $subject = "检查你的验证码", $message){
     // 邮件头
-    $headers = "From: tunarund@tunarund.top\r\n";
-    $headers .= "Reply-To: yaokun-handsome@qq.com\r\n";
+    $headers = "From: " . BRAND_EMAIL . "\r\n";
+    $headers .= "Reply-To: " . BRAND_REPLY_EMAIL . "\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
     //php email函数实际是通过apache调用sendemail（postfix），而apache默认用户为www-data，所以需要参数强制指定用户发送邮件
-    $additional_parameters = "-fyaokun-handsome@qq.com";
+    $additional_parameters = "-f" . BRAND_REPLY_EMAIL;
     try{
         mail($to, $subject, $message, $headers, $additional_parameters);
     }catch (Exception $e){

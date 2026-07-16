@@ -71,6 +71,17 @@ function json_success($data = []){
     echo json_encode(['success' => true, 'data' => $data]);
     exit;
 }
+/**
+ * 将 array_error/success 统一转为 JSON 输出（供 API 端点使用）
+ * @param array $result 来自 array_error() 或 array_success() 的返回值
+ */
+function json_from(array $result): void {
+    if ($result['success'] ?? false) {
+        json_success($result['data'] ?? []);
+    } else {
+        json_error($result['message'] ?? '未知错误');
+    }
+}
 function array_error($msg){
     return ['success' => false, 'message' => $msg];
 }
@@ -116,4 +127,21 @@ function broadcast_message($user_ids,$title,$message){
   }catch(PDOException $e){ return false; }
   $pdo = null;
   return true;
+}
+
+/**
+ * 解析 JSON POST body 中的 ids 数组，逐个校验为数字
+ * @return array ['success'=>bool, 'data'=>int[], 'message'=>string]
+ */
+function post_ids(): array {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') return array_error('请求方法错误');
+    $data = json_decode(file_get_contents('php://input'), true);
+    $ids = $data['ids'] ?? [];
+    if (!is_array($ids) || empty($ids)) {
+        return array_error('非法ID');
+    }
+    foreach ($ids as $id) {
+        if (!is_numeric($id)) return array_error('非法ID');
+    }
+    return array_success($ids);
 }

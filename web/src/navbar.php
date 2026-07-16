@@ -2,12 +2,18 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+// 生成 CSRF token（如未设置）
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 function printHeader($title = "TunArund's Server", $additons = '')
 {
 	echo <<<HTML
 		<head>
 			<meta charset="UTF-8">
 			<meta name="viewport" content="width=device-width, initial-scale=1">
+				<meta name="csrf-token" content="{$_SESSION['csrf_token']}">
 			<title>TunArund {$title}</title>
 			<link href="/static/css/bootstrap.min.css" rel="stylesheet">
 			<script src="/static/js/bootstrap.bundle.min.js"></script>
@@ -93,6 +99,9 @@ function printNavbar($title)
 		</div>
 		HTML;
 	}
+	// 常量转局部变量（HEREDOC 不支持常量插值）
+	$server_connect = SERVER_CONNECT;
+
 	// 合并输出 左侧导航链接 搜索 右侧登录注册
 	echo <<<HTML
 		<nav class="navbar navbar-expand-lg bg-color-darkblue navbar-dark fixed-top">
@@ -119,7 +128,7 @@ function printNavbar($title)
 							<a class="nav-link {$active[2]}" href="/addons/workshop">地图文件</a>
 						</li> -->
 						<li class="nav-item">
-							<a class="btn btn-outline-success" href="steam://connect/82.156.112.164:27015">
+							<a class="btn btn-outline-success" href="steam://connect/{$server_connect}">
 								<i class="bi bi-play-fill">一键进服</i>
 							</a>
 						</li>

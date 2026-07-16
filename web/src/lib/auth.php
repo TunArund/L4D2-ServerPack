@@ -4,10 +4,6 @@
 // ============================================================
 
 function check_login(){
-  $allowed_ips = ['127.0.0.1', 'localhost', '::1'];
-  if (in_array($_SERVER['REMOTE_ADDR'], $allowed_ips)) {
-    return true;
-  }
   if (session_status() === PHP_SESSION_NONE) {
     session_start();
   }
@@ -19,10 +15,6 @@ function check_login(){
 }
 
 function check_admin(){
-  $allowed_ips = ['127.0.0.1', 'localhost', '::1'];
-  if (in_array($_SERVER['REMOTE_ADDR'], $allowed_ips)) {
-    return true;
-  }
   if (session_status() === PHP_SESSION_NONE) {
     session_start();
   }
@@ -31,6 +23,38 @@ function check_admin(){
   } else {
     return false;
   }
+}
+
+// ============================================================
+// CSRF 保护
+// ============================================================
+function csrf_token(): string {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrf_hidden_field(): string {
+    return '<input type="hidden" name="csrf_token" value="' . csrf_token() . '">';
+}
+
+function verify_csrf(): bool {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'GET' || $_SERVER['REQUEST_METHOD'] === 'HEAD' || $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        return true;  // 只读请求无需 CSRF 保护
+    }
+    // 优先检查 POST 表单字段，其次检查 HTTP header（JSON API）
+    $token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (empty($token) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
+        return false;
+    }
+    return true;
 }
 
 function rate_limit($limit = 2, $window = 1) {
