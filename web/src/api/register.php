@@ -1,5 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
+// config 已由 bootstrap.php 自动加载
 function register($pdo, $username, $email, $password, $role)
 {
   try {

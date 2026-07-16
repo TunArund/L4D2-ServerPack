@@ -1,6 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
-session_start();
+// config 已由 bootstrap.php 自动加载
 session_unset();
 session_destroy();
 // Redirect to the login page（仅允许相对路径，防止 Open Redirect 钓鱼）

@@ -404,5 +404,5 @@ task-daemon 主循环中检测跨日自动刷新 `ini_set('error_log', ...)`。
 
 ## 11. 待办
 
-- **dashboard UI**：卡片 header 被悬浮 navbar 遮挡；中等屏幕任务显示异常；任务信息不详细（缺少速度、预计剩余时间）
+- **dashboard.php UI**：卡片 header 被悬浮 navbar 遮挡；中等屏幕任务显示异常；任务信息不详细（缺少速度、预计剩余时间）
 - **泛用化**：通过 `.env` 和 `config.php` 适配不同 IP、品牌名称、备案号

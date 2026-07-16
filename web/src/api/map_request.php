@@ -1,7 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
-include_once LIB_DIR . 'core.php';
-include_once LIB_DIR . 'auth.php';
+// config / core / auth 已由 bootstrap.php 自动加载
 include_once LIB_DIR . 'map.php';
 header('Content-Type: application/json');
 

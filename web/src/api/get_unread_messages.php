@@ -1,6 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
-session_start();
+// config 已由 bootstrap.php 自动加载
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {

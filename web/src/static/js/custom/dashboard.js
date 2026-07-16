@@ -26,10 +26,24 @@ async function updateCosUploadPanel() {
             const dom = panel.dom;
             dom.innerHTML = '';
             if (status === 'uploading') {
-                // 上传中 — 显示进度条
+                // 上传中 — 显示进度条、速度、ETA
                 tasks.forEach(task => {
                     const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
                     const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
+                    let speedText = '计算中...', etaText = '--';
+                    const now = Date.now();
+                    if (lastCosTaskStats[task.id]) {
+                        const last = lastCosTaskStats[task.id];
+                        const timeDiff = (now - last.time) / 1000;
+                        if (timeDiff > 0) {
+                            const bytesDiff = task.processed_bytes - last.processed;
+                            const speed = bytesDiff / timeDiff;
+                            speedText = formatBytes(speed) + '/s';
+                            const remaining = task.total_bytes - task.processed_bytes;
+                            etaText = formatEta(remaining, speed);
+                        }
+                    }
+                    lastCosTaskStats[task.id] = { processed: task.processed_bytes, time: now };
                     const div = document.createElement('div');
                     div.className = 'list-group-item';
                     div.innerHTML = `
@@ -37,7 +51,7 @@ async function updateCosUploadPanel() {
                             <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
                             <small class="text-muted ms-2">${progress}%</small>
                         </div>
-                        <small class="text-secondary">${humanReadable}</small>
+                        <small class="text-secondary">${humanReadable} · ${speedText} · 剩余 ${etaText}</small>
                         <div class="progress mt-1" style="height:6px">
                             <div class="progress-bar bg-info" style="width:${progress}%"></div>
                         </div>
@@ -142,20 +156,33 @@ async function updateDownloadPanel() {
 
 // 记录上一次任务数据用于计算速度
 let lastTaskStats = {};
+let lastCosTaskStats = {};
+
+// 格式化预计剩余时间
+function formatEta(remainingBytes, speedBytesPerSec) {
+    if (!speedBytesPerSec || speedBytesPerSec <= 0 || !remainingBytes || remainingBytes <= 0) return '--';
+    const etaSec = Math.ceil(remainingBytes / speedBytesPerSec);
+    if (etaSec < 60) return etaSec + '秒';
+    if (etaSec < 3600) return Math.floor(etaSec / 60) + '分' + (etaSec % 60) + '秒';
+    return Math.floor(etaSec / 3600) + '时' + Math.floor((etaSec % 3600) / 60) + '分';
+}
 
 function refreshProgressPanel(tasks, dom) {
     dom.innerHTML = '';
     tasks.forEach(task => {
         const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
         const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
-        let speedText = '计算中...';
+        let speedText = '计算中...', etaText = '--';
         const now = Date.now();
         if (lastTaskStats[task.id]) {
             const last = lastTaskStats[task.id];
             const timeDiff = (now - last.time) / 1000;
             if (timeDiff > 0) {
                 const bytesDiff = task.processed_bytes - last.processed;
-                speedText = formatBytes(bytesDiff / timeDiff) + '/s';
+                const speed = bytesDiff / timeDiff;
+                speedText = formatBytes(speed) + '/s';
+                const remaining = task.total_bytes - task.processed_bytes;
+                etaText = formatEta(remaining, speed);
             }
         }
         lastTaskStats[task.id] = { processed: task.processed_bytes, time: now };
@@ -166,7 +193,7 @@ function refreshProgressPanel(tasks, dom) {
                 <span class="fw-bold text-break">${escHtml(task.disk_safe)}</span>
                 <small class="text-muted ms-2">${progress}%</small>
             </div>
-            <small class="text-secondary">${humanReadable} (${speedText})</small>
+            <small class="text-secondary">${humanReadable} · ${speedText} · 剩余 ${etaText}</small>
             <div class="progress mt-1" style="height:6px">
                 <div class="progress-bar bg-success" style="width:${progress}%"></div>
             </div>

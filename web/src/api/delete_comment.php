@@ -1,7 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
-include_once LIB_DIR . 'core.php';
-include_once LIB_DIR . 'auth.php';
+// config / core / auth 已由 bootstrap.php 自动加载
 
 // 使用统一的 check_admin() 而非内联检查
 if (!check_admin()) {

@@ -1,8 +1,8 @@
 <?php
 // ============================================================
 // 任务查询（下载/上传队列）
+// core.php 已由 bootstrap.php 自动加载
 // ============================================================
-include_once __DIR__ . '/core.php';
 
 function query_tasks(PDO $pdo, string $status = 'waiting', int $count = 10, string $type = 'download'): array {
     $query = $pdo->prepare("
