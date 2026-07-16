@@ -1,0 +1,38 @@
+/* ============================================================
+ * 全局样式 — 所有页面共享
+ * ============================================================ */
+
+body {
+    margin: 0;
+    background-image: url("/static/img/blue-guy.jpg");
+    background-size: cover;
+    background-color: #1d2838;
+    padding-top: 70px;
+}
+
+/* 导航栏 */
+.navbar .form-control,
+.navbar .btn {
+    height: 38px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.navbar {
+    backdrop-filter: blur(12px);
+    background-color: rgba(42, 71, 94, 0.75);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    min-height: 60px;
+}
+
+/* 品牌色 */
+.bg-color-darkblue  { background-color: #2a475e; }
+.bg-color-darkerblue { background-color: #1d2838; }
+
+/* 收件箱图标悬停 */
+.link-hover-custom {
+    --bs-icon-link-transform: translate3d(0, -0.2rem, 0);
+    --bs-link-hover-color-rgb: 240, 192, 64;
+}

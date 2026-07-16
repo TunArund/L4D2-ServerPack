@@ -257,9 +257,10 @@ function print_comments($pdo, $map_id)
   HTML;
   //读取数据库录像内嵌代码
   print_records($records);
+  $desc_html = nl2br(htmlspecialchars($description));
   echo <<<HTML
             <div class="mt-3 mx-auto rounded border border-3 bg-color-darkerblue text-light" style="width: 80%;">
-                $description
+                {$desc_html}
             </div>
         HTML;
   print_comments($pdo, $id);

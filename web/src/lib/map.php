@@ -356,7 +356,8 @@ function approve_request($pdo, $request_id) {
             'steam_id' => $request['steam_id'], 'link' => $request['link'], 'status' => 'abandon',
             'title' => $request['title'], 'version' => $request['version'], 'description' => $request['description'],
             'disk_safe' => $request['disk_safe'], 'downlink' => $request['downlink'],
-            'size' => $request['size'], 'preview_url' => $request['preview_url'], 'is_map' => $request['is_map']
+            'size' => $request['size'], 'preview_url' => $request['preview_url'], 'is_map' => $request['is_map'],
+            'subscriptions' => $request['subscriptions'] ?? 0,
         ];
         $result = insert_map($pdo, $map);
         if (!$result['success']) return array_error('插入地图失败:' . $result['message']);

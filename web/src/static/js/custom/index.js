@@ -1,4 +1,5 @@
-function copy(elem,text) {
+// index.php — 首页交互（ES module）
+function copy(elem, text) {
     const originalText = elem.innerText;
     
     if (!text) {
@@ -21,6 +22,9 @@ function copy(elem,text) {
             }, 2000);
         });
 }
+
+// onclick 回调需要全局访问
+window.copy = copy;
 
 
 document.addEventListener('DOMContentLoaded', function () {

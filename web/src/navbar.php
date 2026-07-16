@@ -19,40 +19,7 @@ function printHeader($title = "TunArund's Server", $additons = '')
 			<script src="/static/js/bootstrap.bundle.min.js"></script>
 			<link href="/static/font/bootstrap-icons.min.css" type="text/css" rel="stylesheet" />
 			<link rel="shortcut icon" href="/static/img/favicon.ico">
-			
-			<style>
-				body {
-				margin: 0px;
-				background-image: url("/static/img/blue-guy.jpg");
-				background-size: cover;
-				padding-top: 60px; /* Bootstrap 默认 navbar 高度为 56px，可视情况调高 */
-			}
-				.navbar {
-					backdrop-filter: blur(12px); /* 毛玻璃模糊 */
-					background-color: rgba(42, 71, 94, 0.75); /* 半透明深蓝 */
-					-webkit-backdrop-filter: blur(12px);
-					box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-					min-height: 60px;
-				}
-			.navbar .form-control,
-			.navbar .btn {
-				height: 38px;
-				padding: 0.375rem 0.75rem;
-				font-size: 0.9rem;
-				white-space: nowrap;
-			}
-			.bg-color-darkblue {
-				background-color: #2a475e;
-			}
-			.bg-color-darkerblue {
-				background-color: #1d2838;
-			}
-			
-			.link-hover-custom {
-				--bs-icon-link-transform: translate3d(0, -0.2rem, 0);
-				--bs-link-hover-color-rgb: 240, 192, 64;
-			}
-			</style>
+			<link rel="stylesheet" href="/static/css/custom/global.css">
 			{$additons}
 		</head>
 		HTML;

@@ -238,15 +238,4 @@ export function renderPagination(page_func, nav_elem, total, page = 1, page_size
     return true;
 }
 
-// ---- 同时挂载到 window，供非 module 脚本使用 ----
-window.formatFileSize = formatFileSize;
-window.formatBytes     = formatBytes;
-window.formatBits      = formatBits;
-window.formatTimestamp = formatTimestamp;
-window.escHtml         = escHtml;
-window.toggleAll       = toggleAll;
-window.getSelectedIds  = getSelectedIds;
-window.renderPagination = renderPagination;
-
-
 

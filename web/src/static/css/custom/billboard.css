@@ -1,0 +1,14 @@
+/* ============================================================
+ * billboard.php 专用样式
+ * ============================================================ */
+
+/* 卡片 hover：文字上移 */
+.my-end {
+    position: absolute;
+    bottom: 0;
+    transform: translateY(0);
+    transition: transform 0.3s ease-in-out;
+}
+.card:hover .my-end {
+    transform: translateY(-20px);
+}

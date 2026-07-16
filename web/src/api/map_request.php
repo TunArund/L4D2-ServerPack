@@ -1,7 +1,7 @@
 <?php
 // config / core / auth 已由 bootstrap.php 自动加载
+// Content-Type: application/json 已由 json_error/json_success 自动设置
 include_once LIB_DIR . 'map.php';
-header('Content-Type: application/json');
 
 //检查登录
 if (!check_login()) json_error('请先登录。');

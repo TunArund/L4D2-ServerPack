@@ -1,8 +1,8 @@
 <?php
 // config / core / auth 已由 bootstrap.php 自动加载
+// Content-Type: application/json 已由 json_error/json_success 自动设置
 include_once LIB_DIR . 'db.php';
 include_once LIB_DIR . 'map.php';
-header('Content-Type: application/json');
 
 // 认证：内部服务调用（task-daemon 每日更新）可通过 token 绕过登录
 $sidcar_token = getenv('SIDECAR_TOKEN') ?: '';
