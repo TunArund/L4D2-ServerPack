@@ -4,7 +4,11 @@ include_once __DIR__ . '/../config.php';
 // 处理登录请求
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	include_once LIB_DIR . 'core.php';
-	$pdo = conn_db();
+	include_once LIB_DIR . 'auth.php';
+	if (!verify_csrf()) {
+		echo "无效的请求，请刷新页面重试。";
+		exit;
+	}
 	$username = get_POST('username');
 	$password = get_POST('password');
 	// 验证用户输入
@@ -19,20 +23,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$stmt->execute();
 		$user = $stmt->fetch(PDO::FETCH_ASSOC);
 		if ($user && password_verify($password, $user['hashpass'])) {
-			// 登录成功,清空 session 数据
+			// 登录成功
 			session_start();
-			session_unset();  // 清除所有 session 变量
-			session_destroy(); // 销毁当前会话
-			// 重新启动 session
-			session_start();
+			session_unset();            // 清除所有 session 变量
+			session_regenerate_id(true); // 防止会话固定攻击
 			$_SESSION['user_id']   = $user['id']; //记录id
 			$_SESSION['user_name'] = $user['username']; //记录名称
 			$_SESSION['user_role'] = $user['role']; //记录角色
 			//重定向
 			$return_url = '/billboard.php';
 			if (isset($_GET['return_url'])) {
-				//添加跨域检查
-				$return_url = $_GET['return_url'];
+				// 仅接受以 "/" 开头的相对路径，防止 Open Redirect 钓鱼
+				$input = $_GET["return_url"];
+				if (str_starts_with($input, "/") && !str_starts_with($input, "//")) {
+					$return_url = $input;
+				}
 			}
 			header("Location: $return_url");
 			exit;
@@ -63,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		</div>
 		<div class="card-body">
 			<form method="POST">
+					<?php include_once LIB_DIR . 'auth.php'; echo csrf_hidden_field(); ?>
 				<label for="username">用户名：</label>
 				<input class="form-control" type="text" id="username" name="username" required><br><br>
 				<label for="password">密码：</label>

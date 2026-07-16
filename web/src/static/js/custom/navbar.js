@@ -1,3 +1,65 @@
+// ============================================================
+// 全局 CSRF 保护 — fetch 拦截器
+// ============================================================
+(function() {
+    var _fetch = window.fetch;
+    var CSRF_HEADER = 'X-CSRF-Token';
+    var SAFE_METHODS = { GET: 1, HEAD: 1, OPTIONS: 1 };
+
+    function getCsrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function isSafeMethod(method) {
+        return !!SAFE_METHODS[(method || 'GET').toUpperCase()];
+    }
+
+    function isSameOrigin(url) {
+        try {
+            var u = new URL(url, window.location.origin);
+            return u.origin === window.location.origin;
+        } catch (e) {
+            return true;  // 相对路径视为同源
+        }
+    }
+
+    window.fetch = function(input, init) {
+        init = init || {};
+        var method = (init.method || 'GET').toUpperCase();
+
+        // 仅对同源的非只读请求注入 CSRF token
+        if (!isSafeMethod(method) && isSameOrigin(input)) {
+            var token = getCsrfToken();
+            if (token) {
+                init.headers = init.headers || {};
+                // Headers 可能是普通对象或 Headers 实例
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has(CSRF_HEADER)) {
+                        init.headers.append(CSRF_HEADER, token);
+                    }
+                } else {
+                    var keys = Object.keys(init.headers);
+                    var hasKey = false;
+                    for (var i = 0; i < keys.length; i++) {
+                        if (keys[i].toLowerCase() === CSRF_HEADER.toLowerCase()) {
+                            hasKey = true;
+                            break;
+                        }
+                    }
+                    if (!hasKey) {
+                        init.headers[CSRF_HEADER] = token;
+                    }
+                }
+            }
+        }
+        return _fetch.call(window, input, init);
+    };
+})();
+
+// ============================================================
+// 导航栏功能
+// ============================================================
 function relocation(location) {
   ret_url = window.location.href;
   window.location.href = location + "?return_url=" + ret_url;

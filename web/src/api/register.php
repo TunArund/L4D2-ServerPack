@@ -18,6 +18,8 @@ $username = '';
 $email = '';
 $password = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	include_once LIB_DIR . 'auth.php';
+	if (!verify_csrf()) { exit("无效的请求，请刷新页面重试。"); }
   include_once LIB_DIR . 'core.php'; // 包含数据库连接代码
   $username = htmlspecialchars($_POST['username']);
   $email = htmlspecialchars($_POST['email']);
@@ -71,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
       <form method="POST">
+		<?php include_once LIB_DIR . 'auth.php'; echo csrf_hidden_field(); ?>
         <div class="form-group mt-3">
           <label for="username">用户名</label>
           <input class="form-control" type="text" id="username" name="username" placeholder="用户名" value="<?php echo $username ?>" required>

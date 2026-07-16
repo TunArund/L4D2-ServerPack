@@ -150,6 +150,7 @@ function print_comments($pdo, $map_id)
         <div class="card-header">发表评论</div>
         <div class="card-body">
           <form method="POST">
+                    <?php include_once LIB_DIR . 'auth.php'; echo csrf_hidden_field(); ?>
             <textarea class="form-control" rows=3 name="comment" placeholder="发表评论" required></textarea>
             <button class="btn btn-primary" type="submit">提交评论</button>
           </form>

@@ -1,16 +1,18 @@
 <?php
 include_once __DIR__ . '/../config.php';
-session_start();
+include_once LIB_DIR . 'core.php';
+include_once LIB_DIR . 'auth.php';
 
-// 检查用户是否登录且角色为管理员
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+// 使用统一的 check_admin() 而非内联检查
+if (!check_admin()) {
     die("无权执行此操作。");
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf()) {
+        die("无效的请求，请刷新页面重试。");
+    }
     $comment_id = $_POST['comment_id'];
-    include_once LIB_DIR . 'core.php';
-include_once LIB_DIR . 'auth.php';
     $pdo = conn_db();
     try {
         $stmt = $pdo->prepare("DELETE FROM comments WHERE id = :comment_id");

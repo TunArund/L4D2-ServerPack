@@ -38,7 +38,7 @@ refresh_error_log();
 // 信号处理（优雅退出）
 // ============================================================
 $running = true;
-declare(ticks = 1);
+pcntl_async_signals(true);
 pcntl_signal(SIGTERM, function () use (&$running) {
     $running = false;
 });
