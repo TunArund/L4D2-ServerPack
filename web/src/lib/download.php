@@ -2,7 +2,7 @@
 // 统一任务表 — tasks
 //   type: 'download' (src=SteamURL → dst=本地.vpk) | 'upload' (src=本地.vpk → dst=COS key)
 //   status: waiting → downloading/uploading → success/fail
-include_once LIB_DIR . 'core.php';
+// core.php 已由 bootstrap.php 自动加载
 include_once LIB_DIR . 'db.php';
 
 function add_download_task($pdo, $url, $disk_safe, $map_id)

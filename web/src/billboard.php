@@ -1,5 +1,4 @@
 <?php
-include_once __DIR__ . '/config.php';
 include_once 'navbar.php';
 function get_map_count($pdo, $map_name)
 {

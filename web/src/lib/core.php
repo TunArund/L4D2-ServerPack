@@ -1,8 +1,7 @@
 <?php
-include_once __DIR__ . '/../config.php';
-
 // ============================================================
 // 核心库 — DB连接、日志、格式化、通用辅助
+// config.php 已由 bootstrap.php 自动加载
 // ============================================================
 
 function check_disk_capacity($size_bytes) {

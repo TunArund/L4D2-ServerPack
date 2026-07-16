@@ -1,8 +1,8 @@
 <?php
 // ============================================================
 // 地图 / 申请 业务逻辑
+// core.php 已由 bootstrap.php 自动加载
 // ============================================================
-include_once __DIR__ . '/core.php';
 include_once __DIR__ . '/db.php';
 include_once __DIR__ . '/steam.php';
 

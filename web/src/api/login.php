@@ -1,11 +1,10 @@
 <?php
-include_once __DIR__ . '/../config.php';
+// config 已由 bootstrap.php 自动加载
+// core / auth 已由 bootstrap.php 自动加载
 
 // 处理登录请求
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-	include_once LIB_DIR . 'core.php';
-	include_once LIB_DIR . 'auth.php';
-	if (!verify_csrf()) {
+    if (!verify_csrf()) {
 		echo "无效的请求，请刷新页面重试。";
 		exit;
 	}
@@ -18,13 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 	try {
 		// 查询管理员信息
+		$pdo  = conn_db();
 		$stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username");
 		$stmt->bindParam(':username', $username, PDO::PARAM_STR);
 		$stmt->execute();
 		$user = $stmt->fetch(PDO::FETCH_ASSOC);
 		if ($user && password_verify($password, $user['hashpass'])) {
 			// 登录成功
-			session_start();
 			session_unset();            // 清除所有 session 变量
 			session_regenerate_id(true); // 防止会话固定攻击
 			$_SESSION['user_id']   = $user['id']; //记录id

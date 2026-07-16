@@ -1,8 +1,6 @@
 <?php
-include_once __DIR__ . '/config.php';
+// config / core / auth 已由 bootstrap.php 自动加载
 include_once 'navbar.php';
-include_once LIB_DIR . 'core.php';
-include_once LIB_DIR . 'auth.php';
 $isAdmin = check_admin();
 $sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 ?>
@@ -10,19 +8,7 @@ $sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 <html lang="zh-CN">
 <?php
 $additions = <<<HTML
-<style>
-    body { padding: 20px; background-color: #f5f5f5; }
-
-    /* 折线图高度 */
-    .chart-wrap { width: 100%; height: 180px; }
-    .chart-wrap canvas { width: 100% !important; height: 100% !important; }
-
-    /* 服务管理 — Bootstrap list-group 微调 */
-    #container-list .list-group-item { font-size: 14px; }
-    /* 日志折叠三角 */
-    .log-toggle .triangle::before { content: "▶ "; }
-    .log-toggle:not(.collapsed) .triangle::before { content: "▼ "; }
-</style>
+<link rel="stylesheet" href="/static/css/dashboard.css">
 <script src="/static/js/chart.umd.min.js"></script>
 HTML;
 printHeader("下载任务监控", $additions);
@@ -40,22 +26,22 @@ printHeader("下载任务监控", $additions);
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-info bg-opacity-25">等待中</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-waiting"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-warning bg-opacity-25">下载中</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-downloading"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-success bg-opacity-25">成功</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-success"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="download-fail"></div>
                         </div>
@@ -72,22 +58,22 @@ printHeader("下载任务监控", $additions);
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-info bg-opacity-25">等待中</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-waiting"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-warning bg-opacity-25">上传中</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-uploading"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-success bg-opacity-25">成功</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-success"></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-lg-3 col-md-6">
                         <div class="card bg-light"><div class="card-header fw-bold bg-danger bg-opacity-25">失败</div>
                             <div class="card-body overflow-auto p-2" style="max-height:280px" id="cos-upload-fail"></div>
                         </div>

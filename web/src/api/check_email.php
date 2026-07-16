@@ -1,10 +1,5 @@
 <?php
-include_once __DIR__ . '/../config.php';
-//生成验证码、发邮件、存数据库
-//by:TunArund
-//at:2025.2.1
-include_once LIB_DIR . 'core.php';
-include_once LIB_DIR . 'auth.php';
+// config / core / auth 已由 bootstrap.php 自动加载
 header('Content-Type: application/json');
 // 确保任何 PHP 错误都不会污染 JSON
 ini_set('display_errors', 0);
