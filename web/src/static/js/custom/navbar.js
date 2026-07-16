@@ -65,7 +65,7 @@ function relocation(location) {
   window.location.href = location + "?return_url=" + ret_url;
 }
 function showPreview() {
-  fetch('/api/get_unread_messages.php?limit=5')
+  fetch('/api/messages.php?type=list&limit=5')
     .then(res => res.json())
     .then(data => {
       inboxList.innerHTML = '';
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     timer = setTimeout(() => inboxPreview.style.display = 'none', 300);
   });
 
-  fetch('/api/get_unread_count.php')
+  fetch('/api/messages.php?type=count')
     .then(res => res.json())
     .then(data => {
       if (data.count > 0) {

@@ -17,44 +17,57 @@
 
 ```
 web/src/
-├── config.php                  ← 全局路径/DB/环境常量
-├── lib/                        ← 纯库函数（无 HTTP 入口）
-│   ├── core.php                ← DB 连接、日志、格式化、JSON/array helper
-│   ├── db.php                  ← DB 操作辅助（alive_db / exec_stmt / safe_execute）
-│   ├── auth.php                ← 认证 / 权限 / CSRF / 频率限制
-│   ├── steam.php               ← Steam Workshop API 封装（单条 + 批量 curl_multi）
-│   ├── map.php                 ← 地图 & 申请 业务逻辑（CRUD、审核、更新）
-│   ├── task.php                ← 任务查询
-│   ├── download.php            ← 下载任务驱动（断点续传 + 进度回调）
-│   ├── upload.php              ← 腾讯 COS 上传驱动（HMAC-SHA1 签名）
-│   ├── email.php               ← 腾讯 SES 邮箱验证码（TC3-HMAC-SHA256 签名）
-│   └── debug.php               ← CLI 调试脚本
-├── api/                        ← HTTP API 端点（每个文件可独立调用）
+├── bootstrap.php                ← 统一前置加载（session / CSRF / config / core / auth）
+├── config.php                   ← 全局路径/DB/环境常量
+├── lib/                         ← 纯库函数（无 HTTP 入口）
+│   ├── core.php                 ← DB 连接、日志、格式化、JSON/array helper
+│   ├── db.php                   ← DB 操作辅助（alive_db / exec_stmt / safe_execute）
+│   ├── auth.php                 ← 认证 / 权限 / CSRF / 频率限制
+│   ├── steam.php                ← Steam Workshop API 封装（单条 + 批量 curl_multi）
+│   ├── map.php                  ← 地图 & 申请 业务逻辑（CRUD、审核、更新）
+│   ├── task.php                 ← 任务查询
+│   ├── download.php             ← 下载任务驱动（断点续传 + 进度回调）
+│   ├── upload.php               ← 腾讯 COS 上传驱动（HMAC-SHA1 签名）
+│   ├── email.php                ← 腾讯 SES 邮箱验证码（TC3-HMAC-SHA256 签名）
+│   └── debug.php                ← CLI 调试脚本
+├── api/                         ← HTTP API 端点（每个文件可独立调用）
 │   ├── login.php / logout.php / register.php
 │   ├── check_email.php
-│   ├── map_manage.php          ← 地图管理（list / update / uninstall / delete / update_all / cos_sync / count）
-│   ├── map_request.php         ← 地图申请（add / list / approve / delete / count）
-│   ├── tasks.php               ← 下载/上传任务查询
+│   ├── map_manage.php           ← 地图管理（list / update / uninstall / delete / update_all / cos_sync / count）
+│   ├── map_request.php          ← 地图申请（add / list / approve / delete / count）
+│   ├── tasks.php                ← 下载/上传任务查询
 │   ├── delete_comment.php
-│   ├── get_unread_count.php
-│   └── get_unread_messages.php
-├── task_daemon.php             ← CLI 守护进程（下载 / 上传 / COS 同步 / 每日维护）
-├── static/                     ← 前端静态资源
-│   ├── css/                    ← Bootstrap 5
+│   └── messages.php              ← 未读消息（count / list）
+├── task_daemon.php              ← CLI 守护进程（下载 / 上传 / COS 同步 / 每日维护）
+├── static/                      ← 前端静态资源
+│   ├── css/
+│   │   ├── bootstrap.min.css    ← Bootstrap 5
+│   │   └── custom/              ← 自定义样式
+│   │       ├── global.css       ← 全局（导航栏、body、品牌色）
+│   │       ├── dashboard.css    ← dashboard.php
+│   │       └── billboard.css    ← billboard.php
 │   ├── js/
 │   │   ├── bootstrap.bundle.min.js
 │   │   ├── jquery-3.7.1.min.js
-│   │   ├── chart.umd.min.js    ← Chart.js（dashboard 资源图表）
-│   │   └── custom/             ← 业务 JS（navbar、dashboard、map_manage、map_request、index）
-│   ├── font/                   ← Bootstrap Icons
-│   ├── img/ / audio/ / video/  ← 媒体资源
-│   └── html/                   ← COS 目录浏览页模板等
-├── index.php                   ← 首页（全屏视频 + 服务器信息）
-├── dashboard.php               ← 仪表盘（下载/上传任务 + 服务器资源 + Docker 管理）
-├── personal.php                ← 个人中心（账户 / 收件箱 / 地图申请 / 地图管理）
-├── map_info.php                ← 地图详情页（图片轮播 + 评论 + 下载按钮）
-├── billboard.php               ← 地图列表（搜索 / 分页 / 排序）
-└── navbar.php                  ← 共享导航栏组件 + CSRF meta 标签
+│   │   ├── chart.umd.min.js     ← Chart.js（dashboard 资源图表）
+│   │   └── custom/              ← 业务 JS
+│   │       ├── tools.js          ← 共享工具（formatBytes, renderPagination, …）
+│   │       ├── navbar.js         ← 导航栏 CSRF 拦截 + 收件箱预览
+│   │       ├── dashboard.js      ← 仪表盘（任务面板 + 资源图表 + 容器管理）
+│   │       ├── index.js          ← 首页（服务器状态 + 复制按钮）ES module
+│   │       ├── billboard.js      ← 地图列表（分页跳转）
+│   │       ├── personal.js       ← 个人中心（收件箱操作）
+│   │       ├── map_manage.js     ← 地图管理 ES module
+│   │       └── map_request.js    ← 地图申请 ES module
+│   ├── font/                    ← Bootstrap Icons
+│   ├── img/ / audio/ / video/   ← 媒体资源
+│   └── html/                    ← COS 目录浏览页模板等
+├── index.php                    ← 首页（全屏视频 + 服务器信息）
+├── dashboard.php                ← 仪表盘（下载/上传任务 + 服务器资源 + Docker 管理）
+├── personal.php                 ← 个人中心（账户 / 收件箱 / 地图申请 / 地图管理）
+├── map_info.php                 ← 地图详情页（图片轮播 + 评论 + 下载按钮）
+├── billboard.php                ← 地图列表（搜索 / 分页 / 排序）
+└── navbar.php                   ← 共享导航栏组件 + CSRF meta 标签
 ```
 
 ## 2. 技术栈
@@ -82,6 +95,7 @@ web/src/
 /api/map_manage.php?action= → api/map_manage.php
 /api/map_request.php?action= → api/map_request.php
 /api/tasks.php             → api/tasks.php
+/api/messages.php?type=   → api/messages.php
 ...
 ```
 
@@ -204,32 +218,51 @@ web/src/
 |------|------|
 | `query_tasks($pdo, $status, $count, $type)` | 查询下载/上传任务列表 |
 
-## 4. lib/ 依赖关系
+## 4. 请求生命周期与依赖关系
+
+### 4.1 bootstrap.php — 统一前置加载
+
+所有通过 nginx → PHP-FPM 的请求自动执行 `bootstrap.php`（由 nginx `fastcgi_param PHP_VALUE "auto_prepend_file=..."` 注入，无需业务文件手动 include）：
 
 ```
-config.php  ← 常量定义
+nginx fastcgi_param
     ↓
-core.php    ← 基石（DB连接、日志、array/json helper）
+bootstrap.php  ← session_start / CSRF token 初始化 / require config + core + auth
     ↓
-db.php      ← core + DB 辅助
-auth.php    ← 独立（$_SESSION）
-steam.php   ← 独立（curl）
-map.php     ← core + db + steam + download
-task.php    ← core
-download.php ← core + db
-upload.php  ← 独立（curl + hash_hmac）
-email.php   ← core（BRAND 常量）
+业务文件（api/*.php / *.php）← 直接写业务逻辑，无需重复 include
 ```
 
-### 命名约定
+CLI 脚本（`task_daemon.php`、`lib/debug.php`）不走 nginx，独立引导。
+
+### 4.2 lib/ 依赖关系
+
+```
+bootstrap.php  ← 统一入口（session + CSRF + config + core + auth）
+    ↓
+config.php     ← 常量定义
+core.php       ← 基石（DB连接、日志、array/json helper）
+    ↓
+db.php         ← core + DB 辅助
+auth.php       ← 独立（$_SESSION）
+steam.php      ← 独立（curl）
+map.php        ← core + db + steam + download
+task.php       ← core
+download.php   ← core + db
+upload.php     ← 独立（curl + hash_hmac）
+email.php      ← core（BRAND 常量）
+```
+
+> 业务文件不再直接 include config/core/auth，由 bootstrap.php 统一处理。
+
+### 4.3 命名约定
 
 | 规则 | 示例 |
 |------|------|
 | `lib/` 文件以功能域命名 | `steam.php`、`download.php` |
 | `api/` 文件为实际可调用的端点 | `map_manage.php` |
 | 常量全部大写、下划线分隔 | `LIB_DIR`、`MAP_DIR`、`LOG_DIR` |
-| include 使用常量路径 | `include_once LIB_DIR . 'core.php'` |
-| 入口文件 bootstrap 一行 | `include_once __DIR__ . '/../config.php'` |
+| 页面/API 文件只 include 业务 lib | `include_once LIB_DIR . 'map.php'` |
+| config/core/auth 由 bootstrap 自动加载 | 无需手动 include |
 
 ## 5. 数据库核心表
 
@@ -404,5 +437,7 @@ task-daemon 主循环中检测跨日自动刷新 `ini_set('error_log', ...)`。
 
 ## 11. 待办
 
-- **dashboard.php UI**：卡片 header 被悬浮 navbar 遮挡；中等屏幕任务显示异常；任务信息不详细（缺少速度、预计剩余时间）
 - **泛用化**：通过 `.env` 和 `config.php` 适配不同 IP、品牌名称、备案号
+- **billboard.php / personal.php / map_info.php 模板拆分**：将混写在页面文件中的 SQL + HTML + CSS 按 pages/ + templates/ + static/css/ 拆分（见 [architecture-discussion.md](architecture-discussion.md) 第四节）
+- **conn_db() 单例化**：避免同一请求多次新建 PDO 连接
+- **全局背景图收敛**：`blue-guy.jpg` 全局背景在非主页降低可读性，建议改为纯色默认，仅 index.php 使用背景图

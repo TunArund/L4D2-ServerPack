@@ -27,6 +27,10 @@ function daily_log_path(string $base_path): string {
 }
 
 function conn_db(){
+    static $pdo = null;
+    if ($pdo !== null) {
+        return $pdo;
+    }
     try {
         $pdo = new PDO(
           "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME,
@@ -63,10 +67,12 @@ function get_POST($key, $type = 0, $default = null) {
 }
 
 function json_error($msg){
+    header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => $msg]);
     exit;
 }
 function json_success($data = []){
+    header('Content-Type: application/json');
     echo json_encode(['success' => true, 'data' => $data]);
     exit;
 }

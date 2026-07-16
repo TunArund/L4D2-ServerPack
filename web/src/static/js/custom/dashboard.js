@@ -26,10 +26,7 @@ async function updateCosUploadPanel() {
             const dom = panel.dom;
             dom.innerHTML = '';
             if (status === 'uploading') {
-                // 上传中 — 显示进度条、速度、ETA
                 tasks.forEach(task => {
-                    const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
-                    const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
                     let speedText = '计算中...', etaText = '--';
                     const now = Date.now();
                     if (lastCosTaskStats[task.id]) {
@@ -39,23 +36,13 @@ async function updateCosUploadPanel() {
                             const bytesDiff = task.processed_bytes - last.processed;
                             const speed = bytesDiff / timeDiff;
                             speedText = formatBytes(speed) + '/s';
-                            const remaining = task.total_bytes - task.processed_bytes;
-                            etaText = formatEta(remaining, speed);
+                            etaText = formatEta(task.total_bytes - task.processed_bytes, speed);
                         }
                     }
                     lastCosTaskStats[task.id] = { processed: task.processed_bytes, time: now };
                     const div = document.createElement('div');
                     div.className = 'list-group-item';
-                    div.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
-                            <small class="text-muted ms-2">${progress}%</small>
-                        </div>
-                        <small class="text-secondary">${humanReadable} · ${speedText} · 剩余 ${etaText}</small>
-                        <div class="progress mt-1" style="height:6px">
-                            <div class="progress-bar bg-info" style="width:${progress}%"></div>
-                        </div>
-                    `;
+                    div.innerHTML = progressCardHtml(task, speedText, etaText);
                     dom.appendChild(div);
                 });
             } else {
@@ -167,11 +154,47 @@ function formatEta(remainingBytes, speedBytesPerSec) {
     return Math.floor(etaSec / 3600) + '时' + Math.floor((etaSec % 3600) / 60) + '分';
 }
 
+function formatElapsed(createdAt) {
+    if (!createdAt) return '--';
+    const elapsed = Math.floor((Date.now() - new Date(createdAt.replace(' ', 'T')).getTime()) / 1000);
+    if (elapsed < 0) return '--';
+    if (elapsed < 60) return elapsed + '秒';
+    if (elapsed < 3600) return Math.floor(elapsed / 60) + '分' + (elapsed % 60) + '秒';
+    return Math.floor(elapsed / 3600) + '时' + Math.floor((elapsed % 3600) / 60) + '分';
+}
+
+function progressCardHtml(task, speedText, etaText) {
+    const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
+    const processed = formatBytes(task.processed_bytes);
+    const total     = formatBytes(task.total_bytes);
+    const remaining = formatBytes(task.total_bytes - task.processed_bytes);
+    const elapsed   = formatElapsed(task.created_at);
+    const barCls    = task.type === 'upload' ? 'bg-info' : 'bg-success';
+
+    return `
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
+            <small class="text-muted text-nowrap ms-2">${escHtml(task.created_at)}</small>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mt-1">
+            <span>${processed}</span>
+            <span>${speedText}</span>
+            <span>${remaining}</span>
+        </div>
+        <div class="progress mt-1 position-relative" style="height:18px">
+            <div class="progress-bar ${barCls}" style="width:${progress}%"></div>
+            <span class="position-absolute top-50 start-50 translate-middle small fw-bold"
+                  style="color:#fff;text-shadow:0 0 3px rgba(0,0,0,0.5)">${progress}%</span>
+        </div>
+        <div class="d-flex justify-content-between small text-muted mt-1">
+            <span>${elapsed}</span>
+            <span>剩余 ${etaText}</span>
+        </div>`;
+}
+
 function refreshProgressPanel(tasks, dom) {
     dom.innerHTML = '';
     tasks.forEach(task => {
-        const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
-        const humanReadable = `${formatBytes(task.processed_bytes)} / ${formatBytes(task.total_bytes)}`;
         let speedText = '计算中...', etaText = '--';
         const now = Date.now();
         if (lastTaskStats[task.id]) {
@@ -181,23 +204,13 @@ function refreshProgressPanel(tasks, dom) {
                 const bytesDiff = task.processed_bytes - last.processed;
                 const speed = bytesDiff / timeDiff;
                 speedText = formatBytes(speed) + '/s';
-                const remaining = task.total_bytes - task.processed_bytes;
-                etaText = formatEta(remaining, speed);
+                etaText = formatEta(task.total_bytes - task.processed_bytes, speed);
             }
         }
         lastTaskStats[task.id] = { processed: task.processed_bytes, time: now };
         const div = document.createElement('div');
         div.className = 'list-group-item';
-        div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="fw-bold text-break">${escHtml(task.disk_safe)}</span>
-                <small class="text-muted ms-2">${progress}%</small>
-            </div>
-            <small class="text-secondary">${humanReadable} · ${speedText} · 剩余 ${etaText}</small>
-            <div class="progress mt-1" style="height:6px">
-                <div class="progress-bar bg-success" style="width:${progress}%"></div>
-            </div>
-        `;
+        div.innerHTML = progressCardHtml(task, speedText, etaText);
         dom.appendChild(div);
     });
     dom.appendChild(getViewMoreButton('downloading'));
@@ -452,9 +465,9 @@ async function updateMetrics() {
             tx = (iface.bytes_sent_rate_per_sec || 0) * 8;
         }
 
-        updateNetChart(tx, rx);
-        document.querySelector('#val-net-rx').textContent = formatBits(tx) + '/s';
-        document.querySelector('#val-net-tx').textContent = formatBits(rx) + '/s';
+        updateNetChart(rx, tx);  // dataset[0]=rx=↓下载, dataset[1]=tx=↑上传
+        document.querySelector('#val-net-rx').textContent = formatBits(rx) + '/s';
+        document.querySelector('#val-net-tx').textContent = formatBits(tx) + '/s';
         document.querySelector('#detail-net').textContent = '↓下载 ↑上传';
         document.querySelector('#metrics-update').textContent =
             '最后更新: ' + new Date().toLocaleTimeString();
@@ -478,6 +491,62 @@ setInterval(updateMetrics, INTERVAL);
 
     let lastHash = '';  // 智能刷新：状态没变就跳过 DOM 更新
 
+    // ---- 日志查看器状态 ----
+    const logStates = {};  // { name: { intervalId, tail } }
+
+    function isAtBottom(el) {
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 2;
+    }
+
+    async function refreshLog(name, body, tail) {
+        try {
+            const headers = {};
+            if (window._SIDECAR_TOKEN) headers['X-Auth-Token'] = window._SIDECAR_TOKEN;
+            const res = await fetch('/manage/containers/' + encodeURIComponent(name) + '/logs?tail=' + tail, { headers });
+            const data = await res.json();
+            const newText = data.logs || '(空)';
+
+            if (body.textContent === newText) return;  // 内容未变，跳过 DOM 更新
+
+            const stuck = isAtBottom(body);
+            body.textContent = newText;
+            if (stuck) body.scrollTop = body.scrollHeight;
+        } catch (e) {
+            body.textContent = '获取失败: ' + e.message;
+        }
+    }
+
+    window._startLogViewer = function(name) {
+        if (logStates[name]) return;  // 已在运行
+
+        const body = document.querySelector('#log-' + name + ' div');
+        if (!body) return;
+
+        const tail = 200;
+        body.textContent = '加载中...';
+        refreshLog(name, body, tail);
+        logStates[name] = { intervalId: setInterval(() => refreshLog(name, body, tail), 3000), tail };
+    };
+
+    window._stopLogViewer = function(name) {
+        const state = logStates[name];
+        if (!state) return;
+        clearInterval(state.intervalId);
+        delete logStates[name];
+    };
+
+    // Bootstrap collapse 事件 → 启停日志查看器
+    document.addEventListener('shown.bs.collapse', function(e) {
+        const id = e.target.id;
+        if (id && id.startsWith('log-')) window._startLogViewer(id.replace('log-', ''));
+    });
+    document.addEventListener('hidden.bs.collapse', function(e) {
+        const id = e.target.id;
+        if (id && id.startsWith('log-')) window._stopLogViewer(id.replace('log-', ''));
+    });
+
+    // ---- 容器列表 ----
+
     // 记住哪些容器的日志是展开的（DOM 重建后恢复）
     function getExpandedLogs() {
         const expanded = [];
@@ -488,10 +557,10 @@ setInterval(updateMetrics, INTERVAL);
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            new bootstrap.Collapse(el, { toggle: false }).show();
-            // 重新拉取日志内容（DOM 重建后为空）
+            // 先停旧 viewer（DOM 重建后 body 已变），再展开触发新 viewer
             const name = id.replace('log-', '');
-            window._toggleLogs(name);
+            window._stopLogViewer(name);
+            new bootstrap.Collapse(el, { toggle: false }).show();
         });
     }
 
@@ -515,7 +584,7 @@ setInterval(updateMetrics, INTERVAL);
             lastHash = curHash;
 
             if (!containers.length) {
-                list.innerHTML = '<div class="list-group-item text-muted">暂无服务</div>';
+                list.innerHTML = '<div class="list-group-item text-muted small">暂无服务</div>';
             } else {
                 list.innerHTML = containers.map(c => {
                     const isUp = /^Up\b/i.test(c.status);
@@ -526,10 +595,10 @@ setInterval(updateMetrics, INTERVAL);
                         ? `<button class="btn btn-outline-danger btn-sm" onclick="window._restartContainer('${escHtml(c.name)}', this)">重启</button>`
                         : '';
                     const logBtn = c.name.startsWith('l4d2-')
-                        ? `<button class="btn btn-outline-secondary btn-sm log-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#log-${escHtml(c.name)}" onclick="window._toggleLogs('${escHtml(c.name)}')"><span class="triangle"></span>查看日志</button>`
+                        ? `<button class="btn btn-outline-secondary btn-sm log-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#log-${escHtml(c.name)}"><span class="triangle"></span>查看日志</button>`
                         : '';
                     return `
-                        <div class="list-group-item">
+                        <div class="list-group-item small">
                             <div class="d-flex align-items-center gap-3 flex-wrap">
                                 <strong style="min-width:130px">${escHtml(c.name)}</strong>
                                 <span class="badge ${badgeCls}">${escHtml(shortStatus)}</span>
@@ -549,27 +618,9 @@ setInterval(updateMetrics, INTERVAL);
             restoreExpandedLogs(expanded);
         } catch (e) {
             console.error('获取服务列表失败:', e);
-            list.innerHTML = '<div class="list-group-item text-danger">获取失败: ' + escHtml(e.message) + '</div>';
+            list.innerHTML = '<div class="list-group-item text-danger small">获取失败: ' + escHtml(e.message) + '</div>';
         }
     }
-
-    window._toggleLogs = async function(name) {
-        const collapse = document.getElementById('log-' + name);
-        const body = collapse && collapse.querySelector('div');
-        if (!body) return;
-        // 已加载则跳过
-        if (body.textContent && body.textContent !== '加载中...') return;
-        body.textContent = '加载中...';
-        try {
-            const headers = {};
-            if (window._SIDECAR_TOKEN) headers['X-Auth-Token'] = window._SIDECAR_TOKEN;
-            const res = await fetch('/manage/containers/' + encodeURIComponent(name) + '/logs?tail=100', { headers });
-            const data = await res.json();
-            body.textContent = data.logs || '(空)';
-        } catch (e) {
-            body.textContent = '获取失败: ' + e.message;
-        }
-    };
 
     window._restartContainer = async function(name, btn) {
         if (!confirm('确定重启 ' + name + ' ?')) return;

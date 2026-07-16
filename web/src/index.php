@@ -166,7 +166,7 @@ printHeader('Game Life', $style);
 		您的浏览器不支持音频播放。
 	</audio>
 
-	<script src="/static/js/custom/index.js"></script>
+	<script type="module" src="/static/js/custom/index.js"></script>
 	<?php
 	printFooter('center');
 	?>

@@ -8,7 +8,7 @@ $sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 <html lang="zh-CN">
 <?php
 $additions = <<<HTML
-<link rel="stylesheet" href="/static/css/dashboard.css">
+<link rel="stylesheet" href="/static/css/custom/dashboard.css">
 <script src="/static/js/chart.umd.min.js"></script>
 HTML;
 printHeader("下载任务监控", $additions);

@@ -29,7 +29,9 @@ function format_steam_item(array $item): array {
         'size'          => $item['file_size'],
         'preview_url'   => $item['preview_url'],
         'description'   => $item['file_description'],
-        'subscriptions' => $item['subscriptions'],
+        'subscriptions' => $item['lifetime_subscriptions']
+                        ?? $item['subscriptions']
+                        ?? 0,
     ];
 }
 
