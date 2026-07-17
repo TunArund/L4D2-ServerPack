@@ -20,27 +20,16 @@ function genexpire($last_time=10){//默认上海时区
     $now->modify("+$last_time minutes");
     return $now->format('Y-m-d H:i:s');
 }
-function checkemail($pdo,$email){
+function checkemail($email){
     if(!filter_var($email, FILTER_VALIDATE_EMAIL))return false;
-    $stmt = $pdo->prepare("select count(*) from users where email=?");
-    $stmt->execute([$email]);
-    $count = $stmt->fetchColumn();
-    if($count > 0)return false;
-    return true;
+    $result = user_email_exists($email);
+    if (!$result['success']) return false;
+    return !$result['data'];
 }
-function updatedb($pdo, $email, $vericode, $expire){
-    try{
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM emails WHERE email = ?");
-        $stmt->execute([$email]);
-        if($stmt->fetchColumn() > 0){
-            $stmt = $pdo->prepare("UPDATE emails SET vericode = ?, expire = ? WHERE email = ?");
-            $stmt->execute([$vericode, $expire, $email]);
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO emails (email, vericode, expire) VALUES (?, ?, ?)");
-            $stmt->execute([$email, $vericode, $expire]);
-        }
-    }catch (PDOException $e){
-        error_log("updatedb error: " . $e->getMessage());
+function updatedb($email, $vericode, $expire){
+    $result = upsert_email($email, $vericode, $expire);
+    if (!$result['success']) {
+        error_log("updatedb error: " . $result['message']);
         return false;
     }
     return true;
@@ -48,7 +37,6 @@ function updatedb($pdo, $email, $vericode, $expire){
 
 
 
-$pdo = conn_db();
 include_once LIB_DIR . 'auth.php';
 if (!verify_csrf()) {
 	json_error('CSRF 验证失败，请刷新页面重试。');
@@ -57,19 +45,19 @@ if (!verify_csrf()) {
 rate_limit(1, 60);
 $data = json_decode(file_get_contents('php://input'),true);
 $email = $data['email'] ?? null;
-if(!checkemail($pdo,$email)){
+if(!checkemail($email)){
     json_error('邮箱格式不正确或已被注册');
 }
 $vericode = gencode();
 $last_time = 10;//minutes
 $expire = genexpire($last_time);
 //存数据库
-$result = updatedb($pdo, $email, $vericode, $expire);
+$result = updatedb($email, $vericode, $expire);
 if($result!=true){
   json_error('数据库操作失败');
 }
 //发邮件
-include_once LIB_DIR . 'email.php';
+include_once LIB_DIR . 'ses.php';
 $response = sendEmail($email,$vericode,$expire,$last_time);//有效时间默认10分钟
 $result = json_decode($response,true);
 $success = isset($result['Response']['MessageId']);

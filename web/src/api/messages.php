@@ -9,35 +9,36 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $type  = $_GET['type'] ?? 'count';
-$pdo   = conn_db();
 $uid   = (int) $_SESSION['user_id'];
 
 switch ($type) {
     case 'count':
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE user_id = ? AND is_read = 0");
-        $stmt->execute([$uid]);
-        echo json_encode(['count' => (int) $stmt->fetchColumn()]);
+        $result = count_unread_messages($uid);
+        if (!$result['success']) {
+            http_response_code(500);
+            echo json_encode(['error' => $result['message']]);
+            break;
+        }
+        echo json_encode(['count' => (int) $result['data']]);
         break;
 
     case 'list':
         $limit = min((int) ($_GET['limit'] ?? 5), 50);
-        $stmt = $pdo->prepare("
-            SELECT id, title, created_at
-            FROM messages
-            WHERE user_id = ? AND is_read = 0
-            ORDER BY created_at DESC
-            LIMIT {$limit}
-        ");
-        $stmt->execute([$uid]);
-        $result = [];
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $msg) {
-            $result[] = [
+        $result = list_unread_messages($uid, $limit);
+        if (!$result['success']) {
+            http_response_code(500);
+            echo json_encode(['error' => $result['message']]);
+            break;
+        }
+        $messages = [];
+        foreach ($result['data'] as $msg) {
+            $messages[] = [
                 'id'    => $msg['id'],
                 'title' => $msg['title'],
                 'link'  => '/personal.php?tab=inbox&message_id=' . $msg['id'],
             ];
         }
-        echo json_encode($result);
+        echo json_encode($messages);
         break;
 
     default:

@@ -173,4 +173,3 @@ function sendmail($to, $subject = "检查你的验证码", $message){
     }
     return true;
 }
-

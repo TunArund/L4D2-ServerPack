@@ -4,10 +4,10 @@ if (php_sapi_name() != 'cli') {
     die('This script can only be run from the command line.');
 }
 
-include_once __DIR__ . '/core.php';
-include_once __DIR__ . '/db.php';
-include_once __DIR__ . '/map.php';
-include_once __DIR__ . '/steam.php';
+include_once __DIR__ . '/../etc/config.php';
+include_once __DIR__ . '/../lib/core.php';
+include_once __DIR__ . '/../lib/db.php';
+include_once __DIR__ . '/../lib/steam.php';
 
 $log_file = LOG_DIR.'debug.log';// 手动日志文件
 define('WEB_HOST', getenv('WEB_HOST') ?: 'nginx');
@@ -210,7 +210,7 @@ function update_subscriptions($pdo){
     ]);
   }
 }
-include_once __DIR__ . '/email.php';
+include_once __DIR__ . '/../lib/ses.php';
 //$pdo=conn_db();
 //update_subscriptions($pdo);
 function update_map_all($log_file){

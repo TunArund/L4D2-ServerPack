@@ -1,5 +1,5 @@
 <?php
-include_once __DIR__ . '/config.php';
+include_once __DIR__ . '/../etc/config.php';
 // 限制只能通过命令行访问
 if (php_sapi_name() !== 'cli') {
     die('此脚本只能通过命令行运行');
@@ -12,7 +12,14 @@ gc_enable();
 include_once LIB_DIR . 'core.php';
 include_once LIB_DIR . 'db.php';
 include_once LIB_DIR . 'download.php';
-include_once LIB_DIR . 'upload.php';
+include_once LIB_DIR . 'cos.php';
+
+// 数据访问层
+include_once TABLES_DIR . 'maps.php';
+include_once TABLES_DIR . 'tasks.php';
+include_once TABLES_DIR . 'messages.php';
+include_once TABLES_DIR . 'map_requests.php';
+include_once TABLES_DIR . 'map_request_users.php';
 
 // ============================================================
 // 运行时配置
@@ -205,20 +212,20 @@ function process_manual_triggers(PDO $pdo): void {
  */
 function fetch_next_task(PDO $pdo): ?array {
     // 1. download waiting
-    $result = $pdo->query("SELECT * FROM tasks WHERE type='download' AND status='waiting' ORDER BY id ASC LIMIT 1");
-    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+    $task = fetch_next_download_task();
+    if ($task) return $task;
 
     // 2. download downloading（断点续传）
-    $result = $pdo->query("SELECT * FROM tasks WHERE type='download' AND status='downloading' ORDER BY id ASC LIMIT 1");
-    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+    $task = fetch_next_download_resume_task();
+    if ($task) return $task;
 
     // 3. upload waiting
-    $result = $pdo->query("SELECT * FROM tasks WHERE type='upload' AND status='waiting' ORDER BY id ASC LIMIT 1");
-    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+    $task = fetch_next_upload_task();
+    if ($task) return $task;
 
     // 4. upload uploading（中断恢复：daemon 强制重启后重新处理卡死的上传任务）
-    $result = $pdo->query("SELECT * FROM tasks WHERE type='upload' AND status='uploading' ORDER BY id ASC LIMIT 1");
-    if ($result && ($task = $result->fetch(PDO::FETCH_ASSOC))) return $task;
+    $task = fetch_next_upload_resume_task();
+    if ($task) return $task;
 
     return null;
 }

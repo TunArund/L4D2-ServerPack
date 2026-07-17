@@ -40,7 +40,7 @@ location ~ \.php$ {
     fastcgi_pass php_backend;
     fastcgi_index index.php;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    fastcgi_param PHP_VALUE "auto_prepend_file=/var/www/html/bootstrap.php";
+    fastcgi_param PHP_VALUE "auto_prepend_file=/var/www/html/etc/bootstrap.php";
     include fastcgi_params;
 }
 

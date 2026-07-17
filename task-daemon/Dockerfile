@@ -9,8 +9,15 @@ RUN if [ -n "$APK_MIRROR" ]; then \
 # 运行时依赖
 RUN apk add --no-cache shadow util-linux
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+ARG APP_UID=1000
+ARG APP_GID=1000
+RUN if ! grep -q "^.*:.*:${APP_GID}:" /etc/group 2>/dev/null; then \
+        addgroup -g "$APP_GID" taskdaemon 2>/dev/null || true; \
+    fi && \
+    if ! id -u "$APP_UID" >/dev/null 2>&1; then \
+        adduser -u "$APP_UID" -G "$(getent group "$APP_GID" | cut -d: -f1)" -D -s /bin/sh taskdaemon 2>/dev/null || true; \
+    fi
 
+USER taskdaemon
 WORKDIR /var/www/html
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["php", "/var/www/html/bin/task_daemon.php"]

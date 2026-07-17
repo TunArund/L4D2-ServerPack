@@ -140,17 +140,17 @@ services:
       COS_REGION: ${COS_REGION:-ap-guangzhou}
       COS_CUSTOM_DOMAIN: ${COS_CUSTOM_DOMAIN:-}
     volumes:
-      - ./web/src/config.php:/var/www/html/config.php:ro
+      - ./web/src/etc:/var/www/html/etc:ro
       - ./web/src/lib:/var/www/html/lib:ro
+      - ./web/src/tables:/var/www/html/tables:ro
       - ./web/src/api:/var/www/html/api:ro
       - ./web/src/static:/var/www/html/static:ro
-      - ./web/src/task_daemon.php:/var/www/html/task_daemon.php:ro
+      - ./web/src/bin/task_daemon.php:/var/www/html/bin/task_daemon.php:ro
       - ./l4d2/data/coop/addons:/var/www/addons
       - ./web/data/logs:/var/www/html/logs
     depends_on:
       mysql:
         condition: service_healthy
-    command: php /var/www/html/task_daemon.php
 
   # ============================================================
   # 容器管理 sidecar API

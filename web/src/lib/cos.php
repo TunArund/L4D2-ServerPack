@@ -45,23 +45,12 @@ function cos_configured(): bool {
  */
 function cos_batch_create_tasks(PDO $pdo): array {
     // 1. 查询 version 有变化的地图（常规同步）
-    $stmt = $pdo->query(
-        "SELECT id, disk_safe, version
-         FROM maps
-         WHERE status = 'active'
-           AND (cos_version IS NULL OR cos_version != version)"
-    );
-    $pending = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result = all_maps_pending_cos_sync();
+    $pending = $result['success'] ? $result['data'] : [];
 
     // 2. 查询已同步的地图（完整性检查：COS 上文件可能被意外删除）
-    $stmt2 = $pdo->query(
-        "SELECT id, disk_safe, version
-         FROM maps
-         WHERE status = 'active'
-           AND cos_version IS NOT NULL
-           AND cos_version = version"
-    );
-    $synced = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+    $result = all_maps_cos_synced();
+    $synced = $result['success'] ? $result['data'] : [];
 
     $created   = 0;
     $skipped   = 0;
@@ -97,28 +86,33 @@ function cos_batch_create_tasks(PDO $pdo): array {
         $cos_key    = $map['disk_safe'] . '.vpk';
 
         // 检查是否已有同 map 的 waiting/uploading 任务
-        $dup = $pdo->prepare(
-            "SELECT 1 FROM tasks WHERE map_id = ? AND type = 'upload' AND status IN ('waiting', 'uploading')"
-        );
-        $dup->execute([$map['id']]);
-        if ($dup->fetch()) continue;
+        $result = task_exists_duplicate($map['id'], 'upload');
+        if ($result['success'] && $result['data']) continue;
 
         if (!file_exists($local_path)) {
-            $ins = $pdo->prepare(
-                "INSERT INTO tasks (type, map_id, src, dst, disk_safe, total_bytes, status)
-                 VALUES ('upload', ?, ?, ?, ?, 0, 'fail')"
-            );
-            $ins->execute([$map['id'], $local_path, $cos_key, $map['disk_safe']]);
+            insert_task([
+                'type'       => 'upload',
+                'map_id'     => $map['id'],
+                'src'        => $local_path,
+                'dst'        => $cos_key,
+                'disk_safe'  => $map['disk_safe'],
+                'total_bytes'=> 0,
+                'status'     => 'fail',
+            ]);
             $skipped++;
             continue;
         }
 
         $file_size = filesize($local_path) ?: 0;
-        $ins = $pdo->prepare(
-            "INSERT INTO tasks (type, map_id, src, dst, disk_safe, total_bytes, status)
-             VALUES ('upload', ?, ?, ?, ?, ?, 'waiting')"
-        );
-        $ins->execute([$map['id'], $local_path, $cos_key, $map['disk_safe'], $file_size]);
+        insert_task([
+            'type'       => 'upload',
+            'map_id'     => $map['id'],
+            'src'        => $local_path,
+            'dst'        => $cos_key,
+            'disk_safe'  => $map['disk_safe'],
+            'total_bytes'=> $file_size,
+            'status'     => 'waiting',
+        ]);
         $created++;
     }
 
@@ -135,31 +129,28 @@ function process_upload_task(PDO $pdo, array $task): array {
     $local_path = $task['src'];
     $cos_key    = $task['dst'];
 
-    $pdo->prepare("UPDATE tasks SET status='uploading' WHERE id=?")->execute([$task_id]);
+    update_task_status($task_id, 'uploading');
 
     if (!file_exists($local_path)) {
-        $pdo->prepare("UPDATE tasks SET status='fail', total_bytes=0 WHERE id=?")->execute([$task_id]);
+        mark_task_fail_zero_size($task_id);
         return array_error("文件不存在: {$local_path}");
     }
 
     $res = cos_upload_file($local_path, $cos_key, 'application/octet-stream', 3,
-        function($processed, $total) use ($pdo, $task_id) {
-            $pdo->prepare("UPDATE tasks SET processed_bytes=?, total_bytes=?, updated_at=NOW() WHERE id=?")
-                ->execute([$processed, $total, $task_id]);
+        function($processed, $total) use ($task_id) {
+            update_task_progress($task_id, $processed, $total);
         }
     );
 
     if ($res['success']) {
-        $pdo->prepare("UPDATE tasks SET status='success', processed_bytes=total_bytes WHERE id=?")->execute([$task_id]);
+        mark_task_upload_success($task_id);
         // 先查再写，避免 MySQL Error 1093（不能在 UPDATE 子查询中 SELECT 同一张表）
-        $v = $pdo->prepare("SELECT version FROM maps WHERE id=?");
-        $v->execute([$task['map_id']]);
-        $version = $v->fetchColumn();
-        $pdo->prepare("UPDATE maps SET cos_url=?, cos_version=? WHERE id=?")
-            ->execute([$res['data']['url'], $version, $task['map_id']]);
+        $result = get_map_version($task['map_id']);
+        $version = $result['success'] ? $result['data'] : 0;
+        update_map_cos_info($task['map_id'], $res['data']['url'], (int)$version);
         return array_success("上传成功");
     } else {
-        $pdo->prepare("UPDATE tasks SET status='fail' WHERE id=?")->execute([$task_id]);
+        update_task_status($task_id, 'fail');
         return array_error($res['message']);
     }
 }
@@ -281,10 +272,12 @@ function cos_cleanup_orphans(PDO $pdo): array {
     }
 
     // 1. 获取所有 active 地图的 COS key
-    $stmt = $pdo->query("SELECT disk_safe FROM maps WHERE status = 'active'");
+    $result = all_active_map_disk_safes();
     $active = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $active[$row['disk_safe'] . '.vpk'] = true;
+    if ($result['success']) {
+        foreach ($result['data'] as $row) {
+            $active[$row['disk_safe'] . '.vpk'] = true;
+        }
     }
 
     // 2. 列出 COS 中所有 .vpk 文件

@@ -123,15 +123,8 @@ function curl_proxy(string $url) : bool|string {
 }
 
 function broadcast_message($user_ids,$title,$message){
-  $pdo = conn_db();
-  try{
-    foreach($user_ids as $user_id){
-      $stmt = $pdo->prepare("INSERT INTO messages (user_id, title, message) VALUES (?, ?, ?)");
-      $stmt->execute([$user_id, $title, $message]);
-    }
-  }catch(PDOException $e){ return false; }
-  $pdo = null;
-  return true;
+  $result = broadcast_messages($user_ids, $title, $message);
+  return $result['success'];
 }
 
 /**

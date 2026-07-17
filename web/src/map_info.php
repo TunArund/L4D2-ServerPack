@@ -7,28 +7,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
   $map_id = $_GET['id'];
   $user_id = $_SESSION['user_id'];
 
-  try {
-    $pdo = conn_db();
-    $stmt = $pdo->prepare("INSERT INTO comments (map_id, user_id, comment) VALUES (:map_id, :user_id, :comment)");
-    $stmt->bindParam(':map_id', $map_id);
-    $stmt->bindParam(':user_id', $user_id);
-    $stmt->bindParam(':comment', $comment);
-    $stmt->execute();
+  $result = insert_comment((int)$map_id, (int)$user_id, $comment);
+  if ($result['success']) {
     header("Location: map_info.php?id=$map_id");
-  } catch (PDOException $e) {
-    echo "评论失败: " . $e->getMessage();
+  } else {
+    echo "评论失败: " . $result['message'];
   }
   exit();
 }
 // get获取地图id
 $id = get_GET('id',1,0);
-$pdo = conn_db();
-//准备查询语句
-$stmt = $pdo->prepare("SELECT title,link,steam_id,downlink,description,records,subscriptions,size,img_urls,preview_url,cos_url FROM maps WHERE id=:id");
-$stmt->bindValue(':id',  $id, PDO::PARAM_INT);
-$stmt->execute();
-$maps_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
-if ($maps_info) {
+$result = find_map_detail_by_id($id);
+if ($result['success'] && $result['data']) {
+  $maps_info = [$result['data']];
   $result = $maps_info[0];
   $title = $result['title'];
   $link = $result['link'];
@@ -138,7 +129,7 @@ function print_records($records)
     HTML;
   }
 }
-function print_comments($pdo, $map_id)
+function print_comments($map_id)
 {
   $is_login = check_login();
   $is_admin = check_admin();
@@ -161,18 +152,8 @@ function print_comments($pdo, $map_id)
     HTML;
   }
   // 数据库查该地图map_id评论
-  $stmt = $pdo->prepare("SELECT comments.comment, comments.created_at, users.username 
-                         FROM comments 
-                         JOIN users ON comments.user_id = users.id 
-                         WHERE comments.map_id = :map_id 
-                         ORDER BY comments.created_at DESC");
-  $stmt->bindParam(':map_id', $map_id);
-  try {
-    $stmt->execute();
-    $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-  } catch (PDOException $e) {
-    echo "Error Querying: " . $e->getMessage();
-  }
+  $result = list_comments_by_map($map_id);
+  $comments = $result['success'] ? $result['data'] : [];
   // 没有评论,退出
   if (empty($comments)) {
     echo <<<HTML
@@ -263,7 +244,7 @@ function print_comments($pdo, $map_id)
                 {$desc_html}
             </div>
         HTML;
-  print_comments($pdo, $id);
+  print_comments($id);
   ?>
 
 </body>

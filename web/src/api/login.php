@@ -15,13 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		if (empty($username) || empty($password)) {
 			$error_msg = "用户名和密码不能为空。";
 		} else {
-			try {
-				// 查询管理员信息
-				$pdo  = conn_db();
-				$stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username");
-				$stmt->bindParam(':username', $username, PDO::PARAM_STR);
-				$stmt->execute();
-				$user = $stmt->fetch(PDO::FETCH_ASSOC);
+			// 查询用户信息
+			$result = find_user_by_username($username);
+			if (!$result['success']) {
+				$error_msg = "查询失败：" . $result['message'];
+			} else {
+				$user = $result['data'];
 				if ($user && password_verify($password, $user['hashpass'])) {
 					// 登录成功
 					session_unset();            // 清除所有 session 变量
@@ -43,8 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				} else {
 					$error_msg = "用户名或密码错误。";
 				}
-			} catch (PDOException $e) {
-				$error_msg = "查询失败：" . $e->getMessage();
 			}
 		}
 	}

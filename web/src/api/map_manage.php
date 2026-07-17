@@ -1,10 +1,16 @@
 <?php
 // config / core / auth 已由 bootstrap.php 自动加载
 // Content-Type: application/json 已由 json_error/json_success 自动设置
-include_once LIB_DIR . 'db.php';
-include_once LIB_DIR . 'map.php';
-
 // 认证：内部服务调用（task-daemon 每日更新）可通过 token 绕过登录
+
+// 删除地图（卸载文件 + 删除数据库记录）
+function delete_map_full(int $id): array
+{
+    $result = uninstall_map($id);
+    if (!$result['success']) return array_error($result['message']);
+    return delete_map($id);
+}
+
 $sidcar_token = getenv('SIDECAR_TOKEN') ?: '';
 $api_token    = $_GET['token'] ?? '';
 $is_internal  = ($sidcar_token !== '' && hash_equals($sidcar_token, $api_token));
@@ -18,7 +24,6 @@ if (!$is_internal) {
 ini_set('log_errors', 1);
 ini_set('error_log', daily_log_path(LOG_DIR . 'map_manage_error.log'));
 
-$pdo = conn_db();
 $action = $_GET['action'] ?? '';
 
 switch($action){
@@ -27,7 +32,7 @@ switch($action){
     $offset   = get_GET('offset', 1, 0);
     $order_by = get_GET('order_by', 0, 'id');
     $order    = get_GET('order', 0, 'DESC');
-    $result   = list_map($pdo, $limit, $offset, $order_by, $order);
+    $result   = list_maps(['limit' => $limit, 'offset' => $offset, 'order_by' => $order_by, 'order' => $order]);
     if (!$result['success']) json_error($result['message']);
     json_success($result['data']);
   exit;
@@ -36,7 +41,7 @@ switch($action){
     if (!$result['success']) json_error($result['message']);
     $msg = '';
     foreach ($result['data'] as $id) {
-        $r = uninstall_map($pdo, $id);
+        $r = uninstall_map($id);
         if (!$r['success']) $msg .= $r['message'] . '\n';
     }
     json_success($msg);
@@ -46,7 +51,7 @@ switch($action){
     if (!$result['success']) json_error($result['message']);
     $msg = '';
     foreach ($result['data'] as $id) {
-        $r = delete_map($pdo, $id);
+        $r = delete_map_full($id);
         if (!$r['success']) $msg .= $r['message'] . '\n';
     }
     json_success($msg);
@@ -55,19 +60,17 @@ switch($action){
     $result = post_ids();
     if (!$result['success']) json_error('获取ids失败' . $result['message']);
     $ids = $result['data'];
-    $in  = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $pdo->prepare("SELECT id, steam_id, status, title, disk_safe, version FROM maps WHERE id IN ($in) AND status != 'updating'");
-    $stmt->execute($ids);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $summary = update_maps($pdo, $rows);
+    $result = find_maps_for_update_by_ids($ids);
+    if (!$result['success']) json_error('查询数据库失败' . $result['message']);
+    $rows = $result['data'];
+    $summary = update_maps($rows);
     json_success($summary);
   exit;
   case 'update_all':
-    $stmt = $pdo->prepare("SELECT id, steam_id, status, title, disk_safe, version FROM maps WHERE status != 'updating'");
-    $result = exec_stmt($stmt);
+    $result = all_maps_except_updating();
     if (!$result['success']) json_error('查询数据库失败' . $result['message']);
-    $rows = $result['data']->fetchAll(PDO::FETCH_ASSOC);
-    $summary = update_maps($pdo, $rows);
+    $rows = $result['data'];
+    $summary = update_maps($rows);
     json_success($summary);
   exit;
   case 'cos_sync':
@@ -83,7 +86,7 @@ switch($action){
     ]);
   exit;
   case 'count':
-    json_success(count_map($pdo));
+    json_success(count_maps()['data'] ?? 0);
   exit;
   default:
     json_error('action参数错误');
