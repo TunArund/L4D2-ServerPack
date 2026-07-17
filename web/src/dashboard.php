@@ -154,5 +154,6 @@ printHeader("下载任务监控", $additions);
     </div>
 
     <script type="module" src="/static/js/custom/dashboard.js"></script>
+    <?php printFooter(); ?>
 </body>
 </html>
