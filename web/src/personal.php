@@ -15,30 +15,25 @@ $pdo = conn_db();
 // ---- 副作用操作（标记已读、删除、批量操作） ----
 
 if ($message_id && $tab === 'inbox') {
-    $stmt = $pdo->prepare("UPDATE messages SET is_read = 1 WHERE id = ? AND user_id = ?");
-    $stmt->execute([$message_id, $user_id]);
+    mark_message_read($message_id, $user_id);
 }
 
 if ($tab === 'inbox' && isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
-    $stmt = $pdo->prepare("DELETE FROM messages WHERE id = ? AND user_id = ?");
-    $stmt->execute([$delete_id, $user_id]);
+    delete_message($delete_id, $user_id);
     header('Location: /personal.php?tab=inbox');
     exit;
 }
 
 if ($tab === 'inbox' && isset($_GET['mark_all_read'])) {
-    $stmt = $pdo->prepare("UPDATE messages SET is_read = 1 WHERE user_id = ?");
-    $stmt->execute([$user_id]);
+    mark_all_messages_read($user_id);
     header('Location: /personal.php?tab=inbox');
     exit;
 }
 
 if ($tab === 'inbox' && !empty($_GET['delete_ids'])) {
     $ids = array_map('intval', (array)$_GET['delete_ids']);
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $pdo->prepare("DELETE FROM messages WHERE id IN ($placeholders) AND user_id = ?");
-    $stmt->execute([...$ids, $user_id]);
+    delete_messages($ids, $user_id);
     header('Location: /personal.php?tab=inbox');
     exit;
 }
@@ -80,9 +75,8 @@ function printTabs($tab = 'profile', $isAdmin = false)
 
 function printProfile($pdo, $user_id, $isAdmin)
 {
-    $stmt = $pdo->prepare("SELECT username, email, created_at FROM users WHERE id = ?");
-    $stmt->execute([$user_id]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $result = find_user_by_id($user_id);
+    $user = $result['success'] ? $result['data'] : null;
     $profile = <<<HTML
         <div class="alert alert-danger">未找到用户信息。</div>
     HTML;
@@ -109,9 +103,8 @@ function printProfile($pdo, $user_id, $isAdmin)
 
 function printInbox($pdo, $user_id)
 {
-    $stmt = $pdo->prepare("SELECT id, title, message, is_read, created_at FROM messages WHERE user_id = ? ORDER BY created_at DESC");
-    $stmt->execute([$user_id]);
-    $msgs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result = list_messages_by_user($user_id);
+    $msgs = $result['success'] ? $result['data'] : [];
 
     if (!$msgs) {
         echo <<<HTML

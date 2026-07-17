@@ -2,8 +2,11 @@
 // ============================================================
 // 全局路径与配置常量
 // ============================================================
-define('SRC_DIR', __DIR__ . '/');
+define('SRC_DIR', dirname(__DIR__) . '/');
+define('ETC_DIR', __DIR__ . '/');
+define('BIN_DIR', SRC_DIR . 'bin/');
 define('LIB_DIR', SRC_DIR . 'lib/');
+define('TABLES_DIR', SRC_DIR . 'tables/');
 define('API_DIR', SRC_DIR . 'api/');
 define('MAP_DIR', getenv('MAP_DIR') ?: '/var/www/addons/workshop/');
 define('LOG_DIR', getenv('LOG_DIR') ?: SRC_DIR . 'logs/');
@@ -19,4 +22,3 @@ define('BRAND_DOMAIN', getenv('BRAND_DOMAIN') ?: 'tunarund.top');
 define('BRAND_REPLY_EMAIL', getenv('BRAND_REPLY_EMAIL') ?: 'yaokun-handsome@qq.com');
 define('BRAND_COMPANY', getenv('BRAND_COMPANY') ?: 'Tunarund GameLife');
 define('BRAND_SITE', getenv('BRAND_SITE') ?: 'TunArund');
-

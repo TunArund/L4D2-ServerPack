@@ -2,36 +2,14 @@
 // 统一任务表 — tasks
 //   type: 'download' (src=SteamURL → dst=本地.vpk) | 'upload' (src=本地.vpk → dst=COS key)
 //   status: waiting → downloading/uploading → success/fail
-// core.php 已由 bootstrap.php 自动加载
-include_once LIB_DIR . 'db.php';
-
-function add_download_task($pdo, $url, $disk_safe, $map_id)
-{
-    try {
-        $result = safe_execute($pdo,
-            "SELECT 1 FROM tasks WHERE map_id = ? AND type = 'download' AND status IN ('waiting', 'downloading')",
-            [$map_id]);
-        if ($result === false) return array_error("数据库错误");
-        if ($result->rowCount() > 0) return array_error("已有相同任务");
-
-        $dst = MAP_DIR . $disk_safe . '.vpk';
-        $result = safe_execute($pdo,
-            "INSERT INTO tasks (type, map_id, src, dst, disk_safe) VALUES ('download', ?, ?, ?, ?)",
-            [$map_id, $url, $dst, $disk_safe]
-        );
-        if ($result === false) return array_error("数据库错误");
-        return array_success($pdo->lastInsertId());
-    } catch (PDOException $e) {
-        return array_error($e->getMessage());
-    }
-}
+// core.php 和数据访问函数已由 bootstrap.php 自动加载
 
 function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 {
     $log_fp = fopen($log_file, 'a+');
     if (!$log_fp) return array_error("无法打开日志文件: $log_file");
 
-    safe_execute($pdo, "UPDATE tasks SET status='downloading' WHERE id = ?", [$task['id']]);
+    safe_update_task_status($task['id'], 'downloading');
 
     $base_url = $task['src'];
     $save_path = $task['dst'];
@@ -73,13 +51,12 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
         $lastUpdate = 0; $offset = $resume_from;
         curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function (
             $resource, float $dl_size, float $downloaded, float $ul_size, float $uploaded
-        ) use ($task_id, $pdo, &$lastUpdate, $offset) {
+        ) use ($task_id, &$lastUpdate, $offset) {
             $now = microtime(true);
             if ($dl_size <= 0 || ($now - $lastUpdate) <= 1) return;
             $lastUpdate = $now;
             $actual = $offset + (int)$downloaded;
-            $pdo->prepare("UPDATE tasks SET processed_bytes = ?, total_bytes = ?, updated_at = NOW() WHERE id = ?")
-                ->execute([$actual, $offset + (int)$dl_size, $task_id]);
+            safe_update_task_progress($task_id, $actual, $offset + (int)$dl_size);
         });
 
         $success = curl_exec($ch);
@@ -110,48 +87,34 @@ function download_with_progress($pdo, $task, $dir, $log_file, $max_retries = 5)
 function download_success_callback($pdo, $task)
 {
     $map_id = $task['map_id'];
-    try {
-        $pdo->prepare("UPDATE tasks SET status='success' WHERE id = ?")->execute([$task['id']]);
-        $pdo->prepare("UPDATE maps SET status='active' WHERE id = ?")->execute([$map_id]);
-        $stmt = $pdo->prepare("SELECT title FROM maps WHERE id = ?");
-        $stmt->execute([$map_id]);
-        $title = $stmt->fetch(PDO::FETCH_ASSOC)['title'];
-    } catch (PDOException $e) { return false; }
+    update_task_status($task['id'], 'success');
+    update_map_status($map_id, 'active');
+    $result = get_map_title($map_id);
+    $title = $result['success'] ? $result['data'] : '';
 
-    $result = fetch_related_users($pdo, $map_id);
+    $result = get_user_ids_by_steam_id(
+        get_map_steam_id($map_id)['data'] ?? 0
+    );
     if (!$result['success']) return array_error($result['message']);
     $user_ids = $result['data'];
     if (!$user_ids) return array_error('没有查到任务关联用户');
-    broadcast_message($user_ids, '下载完成!', $title);
+    broadcast_messages($user_ids, '下载完成!', $title);
     return true;
 }
 
 function download_fail_callback($pdo, $task)
 {
     $map_id = $task['map_id'];
-    $pdo->prepare("UPDATE tasks SET status='fail' WHERE id = ?")->execute([$task['id']]);
-    $pdo->prepare("UPDATE maps SET status='abandon' WHERE id = ?")->execute([$map_id]);
+    update_task_status($task['id'], 'fail');
+    update_map_status($map_id, 'abandon');
 
-    $stmt = $pdo->prepare("SELECT title FROM maps WHERE id = ?");
-    $stmt->execute([$map_id]);
-    $title = $stmt->fetch(PDO::FETCH_ASSOC)['title'];
+    $result = get_map_title($map_id);
+    $title = $result['success'] ? $result['data'] : '';
 
-    $result = fetch_related_users($pdo, $map_id);
+    $result = get_user_ids_by_steam_id(
+        get_map_steam_id($map_id)['data'] ?? 0
+    );
     if (!$result['success']) return array_error($result['message']);
-    broadcast_message($result['data'], '下载失败!', $title);
+    broadcast_messages($result['data'], '下载失败!', $title);
     return true;
-}
-
-function fetch_related_users($pdo, $map_id)
-{
-    try {
-        $steam_id = safe_execute($pdo, "SELECT steam_id FROM maps WHERE id = ?", [$map_id])->fetch(PDO::FETCH_COLUMN);
-        $request_ids = safe_execute($pdo, "SELECT id FROM map_requests WHERE steam_id = ?", [$steam_id])->fetchAll(PDO::FETCH_COLUMN);
-        $user_ids = [];
-        foreach ($request_ids as $rid) {
-            $u = safe_execute($pdo, "SELECT user_id FROM map_request_users WHERE id = ?", [$rid]);
-            if ($u) $user_ids[] = $u->fetch(PDO::FETCH_COLUMN);
-        }
-        return array_success($user_ids);
-    } catch (PDOException $e) { return array_error($e->getMessage()); }
 }

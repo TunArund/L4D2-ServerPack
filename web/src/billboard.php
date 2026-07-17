@@ -1,51 +1,6 @@
 <?php
 include_once 'navbar.php';
 
-function get_map_count($pdo, $map_name)
-{
-  $stmt = '';
-  if ($map_name) {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM maps WHERE title LIKE :map_name");
-    $stmt->bindValue(':map_name', "%$map_name%", PDO::PARAM_STR);
-  } else {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM maps");
-  }
-  $stmt->execute();
-  return $stmt->fetchColumn();
-}
-
-function get_map_info($pdo, $page_num, $page_size, $map_name = '', $order_by = 'status', $order = 'DESC')
-{
-  // ORDER BY 白名单校验，防止动态拼接注入
-  $allowed_cols = ['status', 'title', 'subscriptions', 'size', 'created_at', 'updated_at'];
-  $allowed_dirs = ['ASC', 'DESC'];
-  $order_by = in_array($order_by, $allowed_cols, true) ? $order_by : 'status';
-  $order    = in_array(strtoupper($order), $allowed_dirs, true) ? strtoupper($order) : 'DESC';
-
-  $stmt = '';
-  if ($map_name == '') {
-    $stmt = $pdo->prepare("
-      SELECT id,title,subscriptions,size,status,preview_url
-      FROM maps
-      ORDER BY $order_by $order, title $order
-      LIMIT :limit OFFSET :offset
-    ");
-  } else {
-    $stmt = $pdo->prepare("
-      SELECT id,title,subscriptions,size,status,preview_url
-      FROM maps
-      WHERE title LIKE :map_name
-      LIMIT :offset , :limit
-    ");
-    $stmt->bindValue(':map_name', '%' . $map_name . '%', PDO::PARAM_STR);
-  }
-  $offset = ($page_num - 1) * $page_size;
-  $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-  $stmt->bindValue(':limit', (int)$page_size, PDO::PARAM_INT);
-  $stmt->execute();
-  return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
 function print_search_bar($map_name, $page_num, $page_size)
 {
   $src = "billboard.php?page_num=$page_num&page_size=%d&map_name=$map_name";
@@ -250,12 +205,19 @@ printHeader('评分板', $additons);
   <?php
   printNavbar('billboard');
   // core.php 已由 bootstrap.php 自动加载
-  $pdo = conn_db();
   $page_num  = get_GET('page_num', 1, 1);
   $page_size = get_GET('page_size', 1, 24);
   $map_name  = get_GET('map_name', 0, '');
-  $map_count = get_map_count($pdo, $map_name);
-  $maps_info = get_map_info($pdo, $page_num, $page_size, $map_name);
+  $count_result = count_maps($map_name ?: null);
+  $map_count = $count_result['success'] ? (int)$count_result['data'] : 0;
+  $info_result = list_maps_with_preview([
+    'limit'    => $page_size,
+    'offset'   => ($page_num - 1) * $page_size,
+    'order_by' => 'status',
+    'order'    => 'DESC',
+    'search'   => $map_name ?: null,
+  ]);
+  $maps_info = $info_result['success'] ? $info_result['data'] : [];
 
   print_search_bar($map_name, $page_num, $page_size);
   print_map_info($maps_info);

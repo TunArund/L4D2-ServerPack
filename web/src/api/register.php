@@ -1,26 +1,11 @@
 <?php
 // config 已由 bootstrap.php 自动加载
-function register($pdo, $username, $email, $password, $role)
-{
-  try {
-    $stmt = $pdo->prepare("INSERT INTO users (username, email, hashpass, role) VALUES (:username, :email, :hashpass, :role)");
-    $stmt->bindParam(':username', $username);
-    $stmt->bindParam(':email', $email);
-    $stmt->bindParam(':hashpass', $password);
-    $stmt->bindParam(':role', $role);
-    $stmt->execute();
-    return true;
-  } catch (PDOException $e) {
-    return "注册失败: " . $e->getMessage();
-  }
-}
 $username = '';
 $email = '';
 $password = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-	include_once LIB_DIR . 'auth.php';
-	if (!verify_csrf()) { exit("无效的请求，请刷新页面重试。"); }
-  include_once LIB_DIR . 'core.php'; // 包含数据库连接代码
+    include_once LIB_DIR . 'auth.php';
+    if (!verify_csrf()) { exit("无效的请求，请刷新页面重试。"); }
   $username = htmlspecialchars($_POST['username']);
   $email = htmlspecialchars($_POST['email']);
   $password = get_POST('password',0,false);
@@ -30,22 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if(strlen($password)<8) exit("密码不能小于8位");
   $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
   $role = 'guest'; // 默认角色为guest
-  $pdo = conn_db(); // 内含die()函数，如果连接失败则终止脚本
-  try {
-    $stmt = $pdo->prepare("SELECT vericode,expire FROM emails WHERE email=:email");
-    $stmt->bindParam(':email', $email);
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $expire = strtotime($row['expire']);
-    if ($row['vericode'] === $_POST['vericode'] && time() < $expire) {
-      $result = register($pdo, $username, $email, $password, $role);
-      if (! $result) return $result;
+  $result = find_email($email);
+  if (!$result['success']) exit("查询失败: " . $result['message']);
+  $row = $result['data'];
+  $expire = strtotime($row['expire']);
+  if ($row && $row['vericode'] === $_POST['vericode'] && time() < $expire) {
+      $result = insert_user($username, $email, $password, $role);
+      if (!$result['success']) exit("注册失败: " . $result['message']);
       header("Location: /api/login.php");
-    } else {
+  } else {
       exit("验证码错误或已过期");
-    }
-  } catch (PDOException $e) {
-    exit( "查询失败: " . $e->getMessage());
   }
 }
 ?>
