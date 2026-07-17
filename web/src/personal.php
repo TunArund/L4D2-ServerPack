@@ -250,21 +250,24 @@ function printMapManage()
 
 <body>
     <?php printNavbar($title); ?>
-    <div class="row flex-column flex-md-row">
-        <div class="col-12 col-md-auto mb-2 mb-md-0" style="min-width: 180px;">
-            <?php printTabs($tab, $isAdmin); ?>
+    <div class="container-fluid">
+        <div class="row flex-column flex-md-row">
+            <div class="col-12 col-md-auto mb-2 mb-md-0" style="min-width: 180px;">
+                <?php printTabs($tab, $isAdmin); ?>
+            </div>
+            <div class="col ps-md-3">
+                <?php
+                switch ($tab) {
+                    case 'profile':     printProfile($pdo, $user_id, $isAdmin); break;
+                    case 'inbox':       printInbox($pdo, $user_id);            break;
+                    case 'map_request': printMapRequest($isAdmin);             break;
+                    case 'map_manage':  printMapManage();                      break;
+                    default:            printProfile($pdo, $user_id, $isAdmin); break;
+                }
+                ?>
+            </div>
         </div>
-        <div class="col ps-md-3">
-            <?php
-            switch ($tab) {
-                case 'profile':     printProfile($pdo, $user_id, $isAdmin); break;
-                case 'inbox':       printInbox($pdo, $user_id);            break;
-                case 'map_request': printMapRequest($isAdmin);             break;
-                case 'map_manage':  printMapManage();                      break;
-                default:            printProfile($pdo, $user_id, $isAdmin); break;
-            }
-            ?>
-        </div>
+    </div>
     <?php printFooter(); ?>
 <script src="/static/js/custom/personal.js"></script>
 </body>
