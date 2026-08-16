@@ -55,6 +55,61 @@ BRAND_PSB=你的公安备案纯数字编码
 
 ---
 
+## 备份与迁移
+
+数据分三部分：
+
+| 数据 | 位置 | 备份方式 |
+|------|------|----------|
+| 数据库（用户/地图元数据/任务） | MySQL | `./mysql.sh backup` |
+| 服务器配置 / addons | `l4d2/data/` | 冷备 `tar` |
+| 地图文件（.vpk） | 腾讯 COS 桶 | 无需备份，可从 COS 一键恢复 |
+
+### 日常备份
+
+```bash
+# ① 数据库 → steam-时间戳.sql.gz
+./mysql.sh backup
+
+# ② 服务器配置/addons（先停写入该目录的服务，保证一致性）
+docker compose stop task-daemon l4d2 l4d2-versus
+tar czf l4d2-data.tgz l4d2/data/
+docker compose start task-daemon l4d2 l4d2-versus
+```
+
+### 迁移到新服务器
+
+**老服务器**导出两样东西（地图不用导）：
+
+```bash
+./mysql.sh backup                    # → steam-*.sql.gz
+tar czf l4d2-data.tgz l4d2/data/     # 配置/addons
+# 将 steam-*.sql.gz 与 l4d2-data.tgz 传到新服务器
+```
+
+**新服务器**依次恢复：
+
+```bash
+# 1. 配置 .env 后先初始化数据库（建表）
+docker compose up -d mysql
+
+# 2. 恢复数据库（覆盖同名表）
+./mysql.sh restore steam-*.sql.gz
+
+# 3. 恢复服务器配置/addons
+tar xzf l4d2-data.tgz
+
+# 4. 启动全部服务
+docker compose up -d
+
+# 5. 从 COS 拉回地图
+docker compose exec task-daemon php /var/www/html/bin/restore_from_cos.php
+```
+
+> 地图（.vpk）上传到 COS 后，用 `restore_from_cos.php` 一键恢复即可，几十 GB 地图无需随备份拷贝。
+
+---
+
 ## SSL 证书快速配置
 
 ### 阿里云 DNS（推荐）
@@ -240,5 +295,5 @@ https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载�
 | steamcmd 下载慢 | 首次 ~9.3GB，可在网络好的机器下载后 scp 到服务器 |
 | `APP_UID`/`APP_GID` 不匹配 | `.env` 中 `APP_UID`/`APP_GID` 需与 `l4d2/src/` owner 一致，否则容器构建或启动失败（SourceMod 日志 Permission denied） |
 | 挂载目录删不掉 | 大部分容器以 root 创建子目录，宿主普通用户无权删除。需要特权删除 `sudo rm -rf <目录>`，或 `docker run --rm -v $(pwd):/mnt alpine rm -rf /mnt/<目录>` |
-| 新注册用户无法设置管理员 | 网站注册后默认为普通用户，暂无管理后台设置入口。临时通过数据库手动设置：`docker compose exec mysql mysql -u steam -pchange_me -e "UPDATE steam.users SET role='admin' WHERE username='你的用户名';"` |
+| 新注册用户无法设置管理员 | 网站注册后默认为普通用户，暂无管理后台设置入口。临时通过数据库手动设置：`./mysql.sh -e "UPDATE steam.users SET role='admin' WHERE username='你的用户名';"` |
 |各个快捷脚本都放在项目根目录|也许将脚本放入scripts/ 统一入口更好|

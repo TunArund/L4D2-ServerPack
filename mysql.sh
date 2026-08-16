@@ -13,6 +13,8 @@ set -euo pipefail
 #   ./mysql.sh -e "query"      执行单条查询
 #   ./mysql.sh install         安装 mysql-client (Debian/Ubuntu)
 #   ./mysql.sh passwd <root|app> [--reset] [新密码|--random]  修改/重置 root 或应用库密码
+#   ./mysql.sh backup [文件]    备份数据库（默认 .sql.gz）
+#   ./mysql.sh restore <文件>   从备份恢复数据库
 #   ./mysql.sh help            显示帮助
 # ============================================================
 
@@ -68,7 +70,7 @@ _sql_escape() {
 # 读取新密码（参数 > --random > 交互输入）；仅向 stdout 输出密码
 # ============================================================
 _read_new_password() {
-    local arg="${1:-}" pw confirm
+    local arg="${1:-}" label="${2:-root}" pw confirm
     if [[ "$arg" == "--random" ]]; then
         pw="$(openssl rand -hex 16)"
     elif [[ -n "$arg" ]]; then
@@ -78,7 +80,7 @@ _read_new_password() {
             echo "错误: 非交互模式需提供新密码或 --random" >&2
             return 1
         fi
-        read -rsp "新 root 密码: " pw; echo >&2
+        read -rsp "新 ${label} 密码: " pw; echo >&2
         read -rsp "再次输入确认: " confirm; echo >&2
         if [[ "$pw" != "$confirm" ]]; then
             echo "错误: 两次输入不一致" >&2
@@ -185,9 +187,11 @@ install_mysql_client() {
 # ============================================================
 _docker_exec() {
     # stdin 是终端 → 交互模式；否则 → 管道模式
+    # -h 127.0.0.1 走 TCP 匹配 steam@'%'（镜像默认 skip-name-resolve，socket 匹配不到 localhost 账号）
     if [[ -t 0 ]]; then
         docker exec -it "$CONTAINER_NAME" mysql \
             --default-character-set=utf8mb4 \
+            -h 127.0.0.1 \
             -u "$MYSQL_USER" \
             "-p${MYSQL_PASSWORD}" \
             -D "$MYSQL_DATABASE" \
@@ -195,6 +199,7 @@ _docker_exec() {
     else
         docker exec -i "$CONTAINER_NAME" mysql \
             --default-character-set=utf8mb4 \
+            -h 127.0.0.1 \
             -u "$MYSQL_USER" \
             "-p${MYSQL_PASSWORD}" \
             -D "$MYSQL_DATABASE" \
@@ -223,6 +228,84 @@ cmd_install() {
 }
 
 # ============================================================
+# 备份 MySQL 数据库（mysqldump 逻辑备份，输出 .sql 或 .sql.gz）
+# ============================================================
+_dump_db() {
+    docker exec -i "$CONTAINER_NAME" mysqldump \
+        -h 127.0.0.1 -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+        --single-transaction --triggers --set-gtid-purged=OFF \
+        --default-character-set=utf8mb4 \
+        "$MYSQL_DATABASE"
+}
+
+cmd_backup() {
+    local out="${1:-}" size
+    [[ -n "$out" ]] || out="${MYSQL_DATABASE}-$(date +%Y%m%d-%H%M%S).sql.gz"
+
+    if ! container_running; then
+        echo "错误: MySQL 容器 ($CONTAINER_NAME) 未运行" >&2
+        echo "  请先启动: docker compose up -d mysql" >&2
+        exit 1
+    fi
+
+    echo ">>> 备份数据库 $MYSQL_DATABASE → $out ..."
+    if [[ "$out" == *.gz ]]; then
+        if ! _dump_db | gzip > "$out"; then
+            rm -f "$out"
+            echo "错误: 备份失败，请检查 .env 的 DB_PASSWORD 是否正确" >&2
+            exit 1
+        fi
+    else
+        if ! _dump_db > "$out"; then
+            rm -f "$out"
+            echo "错误: 备份失败，请检查 .env 的 DB_PASSWORD 是否正确" >&2
+            exit 1
+        fi
+    fi
+
+    size="$(du -h "$out" | cut -f1)"
+    echo ">>> 备份完成: $out ($size)"
+}
+
+# ============================================================
+# 恢复 MySQL 数据库（导入备份，覆盖同名表）
+# ============================================================
+cmd_restore() {
+    local file="${1:-}"
+    if [[ -z "$file" ]]; then
+        echo "用法: ./mysql.sh restore <备份文件>" >&2
+        exit 1
+    fi
+    if [[ ! -f "$file" ]]; then
+        echo "错误: 文件不存在: $file" >&2
+        exit 1
+    fi
+    if ! container_running; then
+        echo "错误: MySQL 容器 ($CONTAINER_NAME) 未运行" >&2
+        echo "  请先启动: docker compose up -d mysql" >&2
+        exit 1
+    fi
+
+    echo ">>> 恢复数据库 $MYSQL_DATABASE ← $file（覆盖同名表）..."
+    if [[ "$file" == *.gz ]]; then
+        if ! gunzip -c "$file" | docker exec -i "$CONTAINER_NAME" mysql \
+            -h 127.0.0.1 -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+            --default-character-set=utf8mb4 "$MYSQL_DATABASE"; then
+            echo "错误: 恢复失败" >&2
+            exit 1
+        fi
+    else
+        if ! docker exec -i "$CONTAINER_NAME" mysql \
+            -h 127.0.0.1 -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+            --default-character-set=utf8mb4 "$MYSQL_DATABASE" < "$file"; then
+            echo "错误: 恢复失败" >&2
+            exit 1
+        fi
+    fi
+    echo ">>> 恢复完成"
+}
+
+# ============================================================
 # 统一密码管理
 #   用法: ./mysql.sh passwd <root|app> [--reset] [新密码|--random]
 #   root   root 管理员密码
@@ -230,7 +313,7 @@ cmd_install() {
 #   --reset    忘记当前密码时强制重置（--skip-grant-tables，保留数据）
 # ============================================================
 cmd_passwd() {
-    local target="${1:-}" reset=0 random=0 pw_arg="" new_pw sql_new arg
+    local target="${1:-}" reset=0 random=0 pw_arg="" new_pw sql_new arg label env_var
     shift || true
 
     for arg in "$@"; do
@@ -242,21 +325,22 @@ cmd_passwd() {
     done
 
     case "$target" in
-        root|app) ;;
-        *) _passwd_usage; return 1 ;;
+        root) label="root";                     env_var="DB_ROOT_PASSWORD" ;;
+        app)  label="应用库用户 ${MYSQL_USER}"; env_var="DB_PASSWORD" ;;
+        *)    _passwd_usage; return 1 ;;
     esac
 
     if [[ "$random" -eq 1 ]]; then
-        new_pw="$(_read_new_password --random)" || return 1
+        new_pw="$(_read_new_password --random "$label")" || return 1
     else
-        new_pw="$(_read_new_password "$pw_arg")" || return 1
+        new_pw="$(_read_new_password "$pw_arg" "$label")" || return 1
     fi
     sql_new="$(_sql_escape "$new_pw")"
 
     if [[ "$reset" -eq 1 ]]; then
-        _passwd_reset "$target" "$new_pw" "$sql_new"
+        _passwd_reset "$target" "$new_pw" "$sql_new" "$label" "$env_var"
     else
-        _passwd_change "$target" "$new_pw" "$sql_new"
+        _passwd_change "$target" "$new_pw" "$sql_new" "$label" "$env_var"
     fi
 }
 
@@ -270,12 +354,7 @@ _passwd_usage() {
 
 # 在线修改（以 root 身份连接，需知道 root 当前密码）
 _passwd_change() {
-    local target="$1" new_pw="$2" sql_new="$3" root_pw alter_sql env_var label
-    if [[ "$target" == "root" ]]; then
-        env_var="DB_ROOT_PASSWORD"; label="root"
-    else
-        env_var="DB_PASSWORD"; label="$MYSQL_USER"
-    fi
+    local target="$1" new_pw="$2" sql_new="$3" label="$4" env_var="$5" root_pw alter_sql
     root_pw="$(_get_env DB_ROOT_PASSWORD change_me)"
     alter_sql="$(_alter_sql "$target" "$sql_new")"
 
@@ -303,12 +382,7 @@ _passwd_change() {
 
 # 强制重置（忘记密码，--skip-grant-tables 保留数据）
 _passwd_reset() {
-    local target="$1" new_pw="$2" sql_new="$3" reset_name data_dir alter_sql env_var label
-    if [[ "$target" == "root" ]]; then
-        env_var="DB_ROOT_PASSWORD"; label="root"
-    else
-        env_var="DB_PASSWORD"; label="$MYSQL_USER"
-    fi
+    local target="$1" new_pw="$2" sql_new="$3" label="$4" env_var="$5" reset_name data_dir alter_sql
     reset_name="${CONTAINER_NAME}-reset"
     data_dir="${SCRIPT_DIR}/mysql/data"
     alter_sql="$(_alter_sql "$target" "$sql_new")"
@@ -413,6 +487,8 @@ show_help() {
     echo "  -e 'query'     执行单条查询"
     echo "  install        安装 mysql-client (Debian/Ubuntu)"
     echo "  passwd <root|app>  修改/重置 root 或应用库密码（--reset 强制重置，--random 随机生成）"
+    echo "  backup [文件]  备份数据库（默认 steam-时间戳.sql.gz）"
+    echo "  restore <文件> 从备份恢复数据库（覆盖同名表）"
     echo "  help           显示此帮助"
     echo ""
     echo "连接信息 (来自 .env):"
@@ -428,6 +504,8 @@ show_help() {
     echo "  ./mysql.sh install                            # 安装客户端"
     echo "  ./mysql.sh passwd root                        # 交互式修改 root 密码"
     echo "  ./mysql.sh passwd app --reset --random        # 忘记密码时随机重置应用库密码"
+    echo "  ./mysql.sh backup                             # 备份数据库到 .sql.gz"
+    echo "  ./mysql.sh restore steam-20260816-000000.sql.gz  # 恢复备份"
 }
 
 # ============================================================
@@ -444,6 +522,8 @@ else
     case "${1:-}" in
         install)          cmd_install ;;
         passwd)           cmd_passwd "${@:2}" ;;
+        backup)           cmd_backup "${2:-}" ;;
+        restore)          cmd_restore "${2:-}" ;;
         help|--help|-h)   show_help ;;
         *)                cmd_connect "$@" ;;
     esac
