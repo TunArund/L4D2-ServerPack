@@ -159,6 +159,7 @@ services:
       - ./web/src/api:/var/www/html/api:ro
       - ./web/src/static:/var/www/html/static:ro
       - ./web/src/bin/task_daemon.php:/var/www/html/bin/task_daemon.php:ro
+      - ./web/src/bin/restore_from_cos.php:/var/www/html/bin/restore_from_cos.php:ro
       - ./l4d2/data/coop/addons:/var/www/addons
       - ./web/data/logs:/var/www/html/logs
     depends_on:

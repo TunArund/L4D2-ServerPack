@@ -400,9 +400,11 @@ function cos_head_object(string $cos_key): array {
  * @param string $prefix    前缀，如 "l4d2-maps/"（空字符串列出所有）
  * @param string $delimiter 分隔符，"/" 按目录层级分组
  * @param int    $max_keys  单次最大返回数，默认 1000
- * @return array ['success' => bool, 'data' => ['files' => [...], 'dirs' => [...]]]
+ * @param string $marker    分页游标：传上一页返回的 next_marker 以获取后续对象
+ * @return array ['success' => bool, 'data' => ['files' => [...], 'dirs' => [...],
+ *                'is_truncated' => bool, 'next_marker' => string]]
  */
-function cos_list_objects(string $prefix = '', string $delimiter = '/', int $max_keys = 1000): array {
+function cos_list_objects(string $prefix = '', string $delimiter = '/', int $max_keys = 1000, string $marker = ''): array {
     if (!cos_configured()) {
         return array_error('COS 未配置');
     }
@@ -410,11 +412,12 @@ function cos_list_objects(string $prefix = '', string $delimiter = '/', int $max
     $host  = cos_host();
     $date  = gmdate('D, d M Y H:i:s \G\M\T');
 
-    // 构建查询参数（不纳入签名 — AWS V2 下 prefix/delimiter/max-keys 非子资源）
+    // 构建查询参数（不纳入签名 — AWS V2 下 prefix/delimiter/max-keys/marker 非子资源）
     $query = array_filter([
         'delimiter' => $delimiter ?: null,
         'max-keys'  => $max_keys,
         'prefix'    => $prefix ?: null,
+        'marker'    => $marker ?: null,
     ]);
     ksort($query);
     $query_str = http_build_query($query);
@@ -474,6 +477,7 @@ function cos_list_objects(string $prefix = '', string $delimiter = '/', int $max
         'files'       => $files,
         'dirs'        => $dirs,
         'is_truncated'=> ((string)($xml->IsTruncated ?? 'false')) === 'true',
+        'next_marker' => (string)($xml->NextMarker ?? ''),
         'prefix'      => $prefix,
     ]);
 }
@@ -651,5 +655,164 @@ function cos_upload_file(
         'url'       => $object_url,
         'cos_key'   => $cos_key,
         'file_size' => $file_size,
+    ]);
+}
+
+/**
+ * 从 COS 下载对象到本地（GET Object）
+ *
+ * 流式写入（CURLOPT_FILE），不会将整个文件加载到内存。
+ * 支持 Range 断点续传：下载过程写入 {$local_path}.part，
+ * 成功后 rename 为目标路径；中断/失败时保留 .part 供下次续传。
+ *
+ * 断点续传约定：
+ *   - 每次尝试根据 .part 当前大小设置 CURLOPT_RESUME_FROM；
+ *   - 服务器返回 416（Range 不满足）说明 .part 已完整，直接视为成功；
+ *   - 服务器忽略 Range 返回 200 时，丢弃 .part 重新完整下载；
+ *   - 4xx 客户端错误不重试并清除 .part，5xx/网络错误保留 .part 等待重试。
+ *
+ * @param string $cos_key    COS 对象键，如 "l4d2-maps/foo.vpk"
+ * @param string $local_path 本地保存路径
+ * @param int    $max_retries 最大重试次数
+ * @param callable|null $on_progress 进度回调 function(int $processed, int $total): void
+ * @return array ['success' => bool, 'data' => ['url', 'cos_key', 'file_size'], 'message' => string]
+ */
+function cos_download_file(
+    string $cos_key,
+    string $local_path,
+    int $max_retries = 3,
+    ?callable $on_progress = null
+): array {
+    if (!cos_configured()) {
+        return array_error('COS 未配置（缺少 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量）');
+    }
+
+    $save_dir = dirname($local_path);
+    if (!is_dir($save_dir) && !mkdir($save_dir, 0755, true) && !is_dir($save_dir)) {
+        return array_error("无法创建目录: {$save_dir}");
+    }
+
+    // 规范化路径
+    if (strpos($cos_key, '/') !== 0) {
+        $cos_key = '/' . $cos_key;
+    }
+
+    $part_path = $local_path . '.part';
+    $host   = cos_host();
+    $url    = COS_SCHEME . '://' . $host . $cos_key;
+    $date   = gmdate('D, d M Y H:i:s \G\M\T');
+
+    $authorization = cos_generate_auth('GET', $cos_key, '', '', $date);
+
+    $attempt   = 0;
+    $success   = false;
+    $err_msg   = '';
+    $http_code = 0;
+
+    while ($attempt < $max_retries && !$success) {
+        $attempt++;
+
+        // 每次尝试重新计算断点（.part 可能因上次尝试失败而增长）
+        $resume_from = 0;
+        if (file_exists($part_path)) {
+            $sz = filesize($part_path);
+            if ($sz !== false && $sz > 0) $resume_from = $sz;
+        }
+
+        $fp = ($resume_from > 0) ? fopen($part_path, 'ab') : fopen($part_path, 'wb');
+        if (!$fp) {
+            return array_error("无法打开文件: {$part_path}");
+        }
+
+        $ch = curl_init($url);
+        if (!$ch) {
+            fclose($fp);
+            return array_error("无法初始化 cURL");
+        }
+
+        $opts = [
+            CURLOPT_FILE            => $fp,
+            CURLOPT_FOLLOWLOCATION  => true,
+            CURLOPT_CONNECTTIMEOUT  => 30,
+            CURLOPT_TIMEOUT         => 0,
+            CURLOPT_LOW_SPEED_LIMIT => 10240,
+            CURLOPT_LOW_SPEED_TIME  => 15,
+            CURLOPT_HTTPHEADER      => [
+                "Authorization: {$authorization}",
+                "Date: {$date}",
+                "Host: {$host}",
+            ],
+        ];
+        if ($resume_from > 0) {
+            $opts[CURLOPT_RESUME_FROM] = $resume_from;
+        }
+
+        // 进度回调（processed/total 均为含断点偏移的累计值）
+        if ($on_progress !== null) {
+            $opts[CURLOPT_NOPROGRESS] = false;
+            $lastUpdate = 0;
+            $opts[CURLOPT_PROGRESSFUNCTION] = function (
+                $resource, float $dl_size, float $downloaded, float $ul_size, float $uploaded
+            ) use ($on_progress, $resume_from, &$lastUpdate) {
+                $now = microtime(true);
+                if (($now - $lastUpdate) <= 1) return;
+                $lastUpdate = $now;
+                ($on_progress)((int)($resume_from + $downloaded), (int)($resume_from + $dl_size));
+            };
+        }
+
+        curl_setopt_array($ch, $opts);
+
+        $ok        = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err_msg   = curl_error($ch);
+
+        curl_close($ch);
+        fclose($fp);
+
+        // 2xx 表示成功（206=续传完成，200=完整下载）
+        if ($ok && $http_code >= 200 && $http_code < 300) {
+            if ($http_code == 200 && $resume_from > 0) {
+                // 服务器忽略 Range 返回完整内容，却被续写进 .part → 丢弃，重新完整下载
+                unlink($part_path);
+                continue;
+            }
+            $success = true;
+            break;
+        }
+
+        // 416: Range 不满足 → .part 大小已 ≥ 远端大小，视为已完整
+        if ($http_code == 416 && $resume_from > 0) {
+            $success = true;
+            break;
+        }
+
+        // 4xx 客户端错误不重试；清除 .part 垃圾内容
+        if ($http_code >= 400 && $http_code < 500) {
+            if (file_exists($part_path)) unlink($part_path);
+            break;
+        }
+
+        // 5xx / 网络错误 → 保留 .part 供续传，等待后重试
+        if ($attempt < $max_retries) {
+            sleep(min($attempt * 2, 10));
+        }
+    }
+
+    if (!$success) {
+        $message = $err_msg ?: "HTTP {$http_code}";
+        return array_error("COS 下载失败（第 {$attempt} 次尝试）: {$message}");
+    }
+
+    // .part → 目标文件
+    if (!rename($part_path, $local_path)) {
+        return array_error("重命名失败: {$part_path} → {$local_path}");
+    }
+
+    $object_url = cos_object_url($cos_key);
+    return array_success([
+        'url'       => $object_url,
+        'cos_key'   => $cos_key,
+        'file_size' => filesize($local_path),
     ]);
 }
