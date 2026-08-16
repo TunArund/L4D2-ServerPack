@@ -123,7 +123,7 @@ printHeader('Game Life', $style);
 			<div class="col-md-9">
 				<div class="tab-content border p-3 bg-light rounded">
 					<div class="tab-pane fade show active" id="pane-oneclick">
-						<h5><a class="btn btn-outline-success" href="steam://connect/<?= SERVER_IP ?>">一键连接</a></h5>
+						<h5><a class="btn btn-outline-success" href="steam://connect/<?= SERVER_ADDR ?>">一键连接</a></h5>
 						<p>点击按钮自动打开steam-求生之路2并连接服务器：</p>
 						<p>tips：记得先进游戏，等待模组完全加载(附加内容旁的红色圈圈消失)后再点哦！</p>
 					</div>
@@ -134,8 +134,8 @@ printHeader('Game Life', $style);
 							在游戏主界面按下 <kbd>~</kbd> 打开控制台，输入：
 						</p>
 						<div class="d-flex align-items-center">
-							<kbd class="mb-0 me-2" id="ipText">connect <?= SERVER_IP ?></kbd>
-							<button class="btn btn-outline-success btn-sm" onclick="copy(this,'connect <?= SERVER_IP ?>')">
+							<kbd class="mb-0 me-2" id="ipText">connect <?= SERVER_ADDR ?></kbd>
+							<button class="btn btn-outline-success btn-sm" onclick="copy(this,'connect <?= SERVER_ADDR ?>')">
 								复制
 							</button>
 						</div>
@@ -145,7 +145,7 @@ printHeader('Game Life', $style);
 						<h5>通过服务器列表加入</h5>
 						<p>
 							进入游戏 → 按<kbd>~</kbd>打开控制台 → 输入<kbd>openserverbrowser</kbd> -> 按<kbd>Enter</kbd>
-							点击<kbd>我喜爱的</kbd> -> 右键添加 -> 输入<kbd><?= SERVER_IP ?></kbd>后按回车<kbd>enter</kbd>
+							点击<kbd>我喜爱的</kbd> -> 右键添加 -> 输入<kbd><?= SERVER_ADDR ?></kbd>后按回车<kbd>enter</kbd>
 						</p>
 					</div>
 					<div class="tab-pane fade" id="pane-group">

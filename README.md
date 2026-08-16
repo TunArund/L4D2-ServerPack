@@ -40,7 +40,7 @@ APP_UID=1000
 APP_GID=1000
 
 # ── 站点连接与品牌（config.php 无默认值，缺省则一键进服/站点品牌为空）──
-SERVER_IP=你的服务器IP:27015        # steam://connect 仅支持 IP，端口需与 L4D2_PORT 一致
+SERVER_IP=你的服务器公网IP             # 仅 IP 不含端口，端口由 L4D2_PORT 决定
 BRAND_EMAIL=your_email@example.com
 BRAND_DOMAIN=your.domain
 BRAND_REPLY_EMAIL=reply@example.com
@@ -63,7 +63,7 @@ BRAND_PSB=你的公安备案纯数字编码
 # ① 安装 acme.sh
 curl https://get.acme.sh | sh && source ~/.bashrc
 
-# ② 获取 AccessKey（https://ram.console.aliyun.com/users → 子用户 → OpenAPI访问）
+# ② 获取 AccessKey（https://ram.console.aliyun.com/users → 子用户 → AliyunDNSFullAccess）
 export Ali_Key="LTAI5t..."
 export Ali_Secret="..."
 

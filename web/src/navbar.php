@@ -70,7 +70,7 @@ function printNavbar($title)
 		HTML;
 	}
 	// 常量转局部变量（HEREDOC 不支持常量插值）
-	$server_ip = SERVER_IP;
+	$server_ip = SERVER_ADDR;
 	$site = BRAND_SITE;
 
 	// 合并输出 左侧导航链接 搜索 右侧登录注册
