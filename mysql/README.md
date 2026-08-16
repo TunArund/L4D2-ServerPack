@@ -61,7 +61,7 @@ docker exec -i l4d2-mysql mysql -u steam -p steam < mysql/initdb/02-cos.sql
 |------|------|
 | `character-set-server=utf8mb4` | 字符集 |
 | `collation-server=utf8mb4_unicode_ci` | 排序规则 |
-| `MYSQL_ROOT_PASSWORD` | root 密码（`.env`） |
-| `MYSQL_DATABASE/USER/PASSWORD` | 应用数据库（`.env`） |
+| `DB_ROOT_PASSWORD` | root 密码（`.env`，compose 映射为 `MYSQL_ROOT_PASSWORD`） |
+| `DB_DATABASE` / `DB_USER` / `DB_PASSWORD` | 应用数据库（`.env`） |
 
 数据持久化到 `mysql/data/`。

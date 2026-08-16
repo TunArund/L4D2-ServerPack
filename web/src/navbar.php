@@ -7,14 +7,17 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-function printHeader($title = "TunArund's Server", $additons = '')
+function printHeader($title = '', $additons = '')
 {
+	// HEREDOC 不支持常量插值，先转局部变量
+	$site = BRAND_SITE;
+	$title = $title ?: "$site's Server";
 	echo <<<HTML
 		<head>
 			<meta charset="UTF-8">
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 				<meta name="csrf-token" content="{$_SESSION['csrf_token']}">
-			<title>TunArund {$title}</title>
+			<title>{$site} {$title}</title>
 			<link href="/static/css/bootstrap.min.css" rel="stylesheet">
 			<script src="/static/js/bootstrap.bundle.min.js"></script>
 			<link href="/static/font/bootstrap-icons.min.css" type="text/css" rel="stylesheet" />
@@ -67,7 +70,8 @@ function printNavbar($title)
 		HTML;
 	}
 	// 常量转局部变量（HEREDOC 不支持常量插值）
-	$server_connect = SERVER_CONNECT;
+	$server_ip = SERVER_IP;
+	$site = BRAND_SITE;
 
 	// 合并输出 左侧导航链接 搜索 右侧登录注册
 	echo <<<HTML
@@ -78,7 +82,7 @@ function printNavbar($title)
 				</button>
 				<a class="navbar-brand" href="/">
 						<img src="/static/img/favicon.ico" alt="Logo" width="32" height="32" class="d-inline-block align-text-top">
-					TunArund	
+					{$site}
 				</a>
 				<div class="collapse navbar-collapse" id="navbarNavAltMarkup">
 					<ul class="navbar-nav">
@@ -95,7 +99,7 @@ function printNavbar($title)
 							<a class="nav-link {$active[2]}" href="/addons/workshop">地图文件</a>
 						</li> -->
 						<li class="nav-item">
-							<a class="btn btn-outline-success" href="steam://connect/{$server_connect}">
+							<a class="btn btn-outline-success" href="steam://connect/{$server_ip}">
 								<i class="bi bi-play-fill">一键进服</i>
 							</a>
 						</li>
@@ -127,11 +131,14 @@ function printFooter(string $loc='center')
 		default:
 			$loc = "d-flex justify-content-center";
 	}
+	// 常量转局部变量（HEREDOC 不支持常量插值）
+	$icp = BRAND_ICP;
+	$psb = BRAND_PSB;
 	echo <<<HTML
 	<footer class="footer $loc mt-auto bg-light text-muted small py-2">
-	<a class="text-muted me-2" href="https://beian.miit.gov.cn/" target="_blank">ICP备案号</a>
+	<a class="text-muted me-2" href="https://beian.miit.gov.cn/" target="_blank">{$icp}</a>
 	<img src="/static/img/备案图标.png" alt="备案图标" style="height: 16px; vertical-align: text-bottom;">
-	<a class="text-muted ms-2" href="https://beian.mps.gov.cn/#/query/webSearch?code=公安备案号" rel="noreferrer" target="_blank">豫公网安备公安备案号号</a>
+	<a class="text-muted ms-2" href="https://beian.mps.gov.cn/#/query/webSearch?code={$psb}" rel="noreferrer" target="_blank">豫公网安备{$psb}号</a>
 	</footer>
 	HTML;
 }

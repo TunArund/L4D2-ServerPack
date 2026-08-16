@@ -17,9 +17,9 @@ PROJECT_ROOT="$(pwd)"
 if [ -f .env ]; then set -a; source .env; set +a; fi
 
 export PROJECT_ROOT
-export DB_PASS="${MYSQL_PASSWORD:-}"
-export DB_USER="${MYSQL_USER:-steam}"
-export DB_NAME="${MYSQL_DATABASE:-steam}"
+export DB_PASS="${DB_PASSWORD:-}"
+export DB_USER="${DB_USER:-steam}"
+export DB_NAME="${DB_DATABASE:-steam}"
 export SIDECAR_TOKEN="${SIDECAR_TOKEN:-}"
 export TEST_HOST="${TEST_HOST:-http://localhost}"
 

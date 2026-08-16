@@ -33,9 +33,9 @@ _get_env() {
     fi
 }
 
-MYSQL_DATABASE="$(_get_env MYSQL_DATABASE steam)"
-MYSQL_USER="$(_get_env MYSQL_USER steam)"
-MYSQL_PASSWORD="$(_get_env MYSQL_PASSWORD change_me)"
+MYSQL_DATABASE="$(_get_env DB_DATABASE steam)"
+MYSQL_USER="$(_get_env DB_USER steam)"
+MYSQL_PASSWORD="$(_get_env DB_PASSWORD change_me)"
 
 # ============================================================
 # 检测 Docker 容器是否运行

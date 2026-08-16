@@ -15,10 +15,15 @@ define('DB_HOST', getenv('DB_HOST') ?: 'mysql');
 define('DB_NAME', getenv('DB_DATABASE') ?: 'steam');
 define('DB_USER', getenv('DB_USER') ?: 'steam');
 define('DB_PASS', getenv('DB_PASSWORD') ?: '');
-// 品牌/部署特定常量（通过 .env 覆盖）
-define('SERVER_CONNECT', getenv('SERVER_CONNECT') ?: '1.2.3.4:27015');
-define('BRAND_EMAIL', getenv('BRAND_EMAIL') ?: 'admin@example.com');
-define('BRAND_DOMAIN', getenv('BRAND_DOMAIN') ?: 'tunarund.top');
-define('BRAND_REPLY_EMAIL', getenv('BRAND_REPLY_EMAIL') ?: 'reply@example.com');
-define('BRAND_COMPANY', getenv('BRAND_COMPANY') ?: 'Tunarund GameLife');
-define('BRAND_SITE', getenv('BRAND_SITE') ?: 'TunArund');
+// 品牌/部署特定常量（无内置默认值，必须通过 .env 注入）
+// 对应项见 .env.example「Web 站点品牌 & 连接信息」
+define('SERVER_IP', getenv('SERVER_IP') ?: '');
+define('BRAND_EMAIL', getenv('BRAND_EMAIL') ?: '');
+define('BRAND_DOMAIN', getenv('BRAND_DOMAIN') ?: '');
+define('BRAND_REPLY_EMAIL', getenv('BRAND_REPLY_EMAIL') ?: '');
+define('BRAND_COMPANY', getenv('BRAND_COMPANY') ?: '');
+define('BRAND_SITE', getenv('BRAND_SITE') ?: '');
+define('BRAND_STEAM_GROUP', getenv('BRAND_STEAM_GROUP') ?: '');
+// 页脚备案：BRAND_ICP 为显示文本；BRAND_PSB 为纯数字编码（用于链接与显示拼装）
+define('BRAND_ICP', getenv('BRAND_ICP') ?: '');
+define('BRAND_PSB', getenv('BRAND_PSB') ?: '');
