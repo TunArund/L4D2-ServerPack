@@ -62,18 +62,18 @@ BRAND_PSB=你的公安备案纯数字编码
 | 数据 | 位置 | 备份方式 |
 |------|------|----------|
 | 数据库（用户/地图元数据/任务） | MySQL | `./mysql.sh backup` |
-| 服务器配置 / addons | `l4d2/data/` | 冷备 `tar` |
+| 服务器配置 / addons | `l4d2/data/`（不含 `workshop/` 地图） | 冷备 `tar` |
 | 地图文件（.vpk） | 腾讯 COS 桶 | 无需备份，可从 COS 一键恢复 |
 
 ### 日常备份
 
 ```bash
-# ① 数据库 → steam-时间戳.sql.gz
+# ① 数据库 → backup/steam-时间戳.sql.gz
 ./mysql.sh backup
 
 # ② 服务器配置/addons（先停写入该目录的服务，保证一致性）
 docker compose stop task-daemon l4d2 l4d2-versus
-tar czf l4d2-data.tgz l4d2/data/
+tar czf backup/l4d2-data.tgz --exclude='workshop' l4d2/data/
 docker compose start task-daemon l4d2 l4d2-versus
 ```
 
@@ -82,9 +82,9 @@ docker compose start task-daemon l4d2 l4d2-versus
 **老服务器**导出两样东西（地图不用导）：
 
 ```bash
-./mysql.sh backup                    # → steam-*.sql.gz
-tar czf l4d2-data.tgz l4d2/data/     # 配置/addons
-# 将 steam-*.sql.gz 与 l4d2-data.tgz 传到新服务器
+./mysql.sh backup                                            # → backup/steam-*.sql.gz
+tar czf backup/l4d2-data.tgz --exclude='workshop' l4d2/data/ # 配置/addons（排除 workshop 地图）
+# 将整个 backup/ 目录传到新服务器
 ```
 
 **新服务器**依次恢复：
@@ -94,10 +94,10 @@ tar czf l4d2-data.tgz l4d2/data/     # 配置/addons
 docker compose up -d mysql
 
 # 2. 恢复数据库（覆盖同名表）
-./mysql.sh restore steam-*.sql.gz
+./mysql.sh restore backup/steam-*.sql.gz
 
 # 3. 恢复服务器配置/addons
-tar xzf l4d2-data.tgz
+tar xzf backup/l4d2-data.tgz
 
 # 4. 启动全部服务
 docker compose up -d
@@ -106,7 +106,24 @@ docker compose up -d
 docker compose exec task-daemon php /var/www/html/bin/restore_from_cos.php
 ```
 
-> 地图（.vpk）上传到 COS 后，用 `restore_from_cos.php` 一键恢复即可，几十 GB 地图无需随备份拷贝。
+### 远程一键备份 / 迁移
+
+已在本机配置 SSH 免密登录到服务器时，用 `backup-pull.sh` 在远端执行备份、拉取到本地、可选还原，省去手动 `scp`：
+
+```bash
+# 备份 + 拉取（安全，不碰本地数据）
+./backup-pull.sh steam@1.2.3.4 /home/steam/L4D2-ServerPack
+
+# 备份 + 拉取 + 本地还原（需输入 yes，覆盖本地数据）
+./backup-pull.sh steam@1.2.3.4 /home/steam/L4D2-ServerPack full
+
+# 查看帮助（子命令 backup|pull|all|restore|full）
+./backup-pull.sh --help
+```
+
+> 前提：远端需已部署最新版（`mysql.sh` 输出到 `backup/`）；`restore`/`full` 要在目标机项目根目录运行，且本地 MySQL 已初始化建表。SSH 非 22 端口用 `SSH_PORT=2222 ./backup-pull.sh ...`。
+
+> 地图（.vpk）都在 `l4d2/data/coop/addons/workshop/`（即 `MAP_DIR`），已上传 COS；备份时用 `--exclude='workshop'` 排除，几十 GB 地图无需随备份拷贝，用 `restore_from_cos.php` 一键恢复即可。注意 `addons/` 下的插件（sourcemod/metamod 等）和自定义 `.vpk`（如 `少量尸潮.vpk`）不在 COS，仍需随 `tar` 备份。
 
 ---
 
@@ -155,6 +172,8 @@ l4d2-server/
 ├── .env.example
 ├── docker.sh                   # Docker 管理 (install/build/up/down/push/logs…)
 ├── l4d2.sh                     # steamcmd 下载/更新游戏
+├── mysql.sh                    # MySQL 连接/密码/备份恢复
+├── backup-pull.sh              # 远程备份拉取/还原
 ├── test.sh                     # 测试入口 (healthcheck + auto + manual)
 ├── README.md                    # 项目总览（本文件）
 ├── CHANGELOG.md                 # 更新日志

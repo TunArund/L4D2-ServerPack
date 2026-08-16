@@ -13,8 +13,8 @@ set -euo pipefail
 #   ./mysql.sh -e "query"      执行单条查询
 #   ./mysql.sh install         安装 mysql-client (Debian/Ubuntu)
 #   ./mysql.sh passwd <root|app> [--reset] [新密码|--random]  修改/重置 root 或应用库密码
-#   ./mysql.sh backup [文件]    备份数据库（默认 .sql.gz）
-#   ./mysql.sh restore <文件>   从备份恢复数据库
+#   ./mysql.sh backup [文件]    备份数据库（默认 backup/<库名>-时间戳.sql.gz）
+#   ./mysql.sh restore <文件>   从备份恢复数据库（裸文件名默认在 backup/ 下查找）
 #   ./mysql.sh help            显示帮助
 # ============================================================
 
@@ -23,6 +23,7 @@ cd "$SCRIPT_DIR"
 
 CONTAINER_NAME="l4d2-mysql"
 MYSQL_IMAGE="mysql:8.0"   # 需与 docker-compose.yml 中 mysql 服务镜像一致
+BACKUP_DIR="$SCRIPT_DIR/backup"   # 备份输出目录（SQL dump 与冷备 tgz 统一放这里）
 
 # ============================================================
 # 从 .env 读取配置
@@ -231,16 +232,24 @@ cmd_install() {
 # 备份 MySQL 数据库（mysqldump 逻辑备份，输出 .sql 或 .sql.gz）
 # ============================================================
 _dump_db() {
+    # --no-tablespaces: 应用库用户无 PROCESS 权限，跳过表空间转储（否则 mysqldump 报 Access denied）
     docker exec -i "$CONTAINER_NAME" mysqldump \
         -h 127.0.0.1 -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
         --single-transaction --triggers --set-gtid-purged=OFF \
+        --no-tablespaces \
         --default-character-set=utf8mb4 \
         "$MYSQL_DATABASE"
 }
 
 cmd_backup() {
     local out="${1:-}" size
-    [[ -n "$out" ]] || out="${MYSQL_DATABASE}-$(date +%Y%m%d-%H%M%S).sql.gz"
+    if [[ -n "$out" ]]; then
+        # 裸文件名（无目录分隔符）→ 放进 backup/
+        [[ "$out" == */* ]] || out="$BACKUP_DIR/$out"
+    else
+        out="$BACKUP_DIR/${MYSQL_DATABASE}-$(date +%Y%m%d-%H%M%S).sql.gz"
+    fi
+    mkdir -p "$BACKUP_DIR"
 
     if ! container_running; then
         echo "错误: MySQL 容器 ($CONTAINER_NAME) 未运行" >&2
@@ -275,6 +284,10 @@ cmd_restore() {
     if [[ -z "$file" ]]; then
         echo "用法: ./mysql.sh restore <备份文件>" >&2
         exit 1
+    fi
+    # 裸文件名：当前目录没有、backup/ 下有 → 用 backup/ 下的
+    if [[ "$file" != */* && ! -f "$file" && -f "$BACKUP_DIR/$file" ]]; then
+        file="$BACKUP_DIR/$file"
     fi
     if [[ ! -f "$file" ]]; then
         echo "错误: 文件不存在: $file" >&2
@@ -487,8 +500,8 @@ show_help() {
     echo "  -e 'query'     执行单条查询"
     echo "  install        安装 mysql-client (Debian/Ubuntu)"
     echo "  passwd <root|app>  修改/重置 root 或应用库密码（--reset 强制重置，--random 随机生成）"
-    echo "  backup [文件]  备份数据库（默认 steam-时间戳.sql.gz）"
-    echo "  restore <文件> 从备份恢复数据库（覆盖同名表）"
+    echo "  backup [文件]  备份数据库（默认 backup/steam-时间戳.sql.gz）"
+    echo "  restore <文件> 从备份恢复数据库（裸文件名默认在 backup/，覆盖同名表）"
     echo "  help           显示此帮助"
     echo ""
     echo "连接信息 (来自 .env):"
@@ -504,8 +517,8 @@ show_help() {
     echo "  ./mysql.sh install                            # 安装客户端"
     echo "  ./mysql.sh passwd root                        # 交互式修改 root 密码"
     echo "  ./mysql.sh passwd app --reset --random        # 忘记密码时随机重置应用库密码"
-    echo "  ./mysql.sh backup                             # 备份数据库到 .sql.gz"
-    echo "  ./mysql.sh restore steam-20260816-000000.sql.gz  # 恢复备份"
+    echo "  ./mysql.sh backup                             # 备份数据库到 backup/*.sql.gz"
+    echo "  ./mysql.sh restore steam-20260816-000000.sql.gz  # 恢复备份（自动找 backup/）"
 }
 
 # ============================================================
