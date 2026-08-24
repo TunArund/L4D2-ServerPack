@@ -230,8 +230,8 @@ services:
       - ./l4d2/data/coop/cfg/cfgogl:/home/steam/l4d2/left4dead2/cfg/cfgogl
       - ./l4d2/data/coop/host.txt:/home/steam/l4d2/left4dead2/host.txt
       - ./l4d2/data/coop/motd.txt:/home/steam/l4d2/left4dead2/motd.txt
-      - ./l4d2/data/coop/ems:/home/steam/left4dead2/ems
-      - ./l4d2/data/coop/scripts/vscripts:/home/steam/left4dead2/scripts/vscripts
+      - ./l4d2/data/coop/ems:/home/steam/l4d2/left4dead2/ems
+      - ./l4d2/data/coop/scripts/vscripts:/home/steam/l4d2/left4dead2/scripts/vscripts
     ports:
       - "${L4D2_PORT}:27015/udp"
       - "${L4D2_PORT}:27015/tcp"
@@ -259,7 +259,7 @@ services:
       - ./l4d2/data/versus/cfg/generalfixes.cfg:/home/steam/l4d2/left4dead2/cfg/generalfixes.cfg
       - ./l4d2/data/versus/cfg/cvar_tracking.cfg:/home/steam/l4d2/left4dead2/cfg/cvar_tracking.cfg
       - ./l4d2/data/versus/cfg/sharedplugins.cfg:/home/steam/l4d2/left4dead2/cfg/sharedplugins.cfg
-      - ./l4d2/data/versus/scripts/vscripts:/home/steam/left4dead2/scripts/vscripts
+      - ./l4d2/data/versus/scripts/vscripts:/home/steam/l4d2/left4dead2/scripts/vscripts
       - ./l4d2/data/versus/host.txt:/home/steam/l4d2/left4dead2/myhost.txt
       - ./l4d2/data/versus/motd.txt:/home/steam/l4d2/left4dead2/mymotd.txt
     ports:

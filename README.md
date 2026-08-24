@@ -106,6 +106,19 @@ docker compose up -d
 docker compose exec task-daemon php /var/www/html/bin/restore_from_cos.php
 ```
 
+### 迁移提醒（易漏项）
+
+`tar` 冷备会连同 `l4d2/data/` 里的 `motd.txt`/`host.txt` 一起打包，其中写死了**旧服务器公网 IP**，还原后要手动改成新 IP（或域名）：
+
+```bash
+l4d2/data/coop/motd.txt       # → http://新IP/static/html/face.html
+l4d2/data/coop/host.txt       # → http://新IP/static/html/banner.html
+l4d2/data/versus/host.txt     # → http://新IP/static/html/banner.html
+```
+
+另外 [face.html](web/src/static/html/face.html) 里硬编码了备案号、公安备案号和站点 title（静态页读不到 `.env`），换主体或域名时需同步改。其余站点配置（`SERVER_IP`、`BRAND_*`、`COS_*`）改 `.env` 即可。
+正在将face和banner以及addonlist.txt独立为容器
+
 ### 远程一键备份 / 迁移
 
 已在本机配置 SSH 免密登录到服务器时，用 `backup-pull.sh` 在远端执行备份、拉取到本地、可选还原，省去手动 `scp`：
