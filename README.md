@@ -132,7 +132,6 @@ l4d2/data/versus/host.txt     # → http://新IP/static/html/banner.html
 ```
 
 另外 [face.html](web/src/static/html/face.html) 里硬编码了备案号、公安备案号和站点 title（静态页读不到 `.env`），换主体或域名时需同步改。其余站点配置（`SERVER_IP`、`BRAND_*`、`COS_*`）改 `.env` 即可。
-正在将face和banner以及addonlist.txt独立为容器
 
 ### 远程一键备份 / 迁移
 
@@ -302,7 +301,7 @@ graph TB
 
 ---
 
-## Sidecar API
+## 容器管理 API
 
 | 端点 | 认证 | 说明 |
 |------|------|------|
@@ -334,7 +333,9 @@ graph TB
 
 https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载求生之路2服务器文件的指令。
 
-## 已知问题
+---
+
+## 已知问题 / 待办
 
 | 问题 | 说明 |
 |------|------|
@@ -343,4 +344,5 @@ https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载�
 | `APP_UID`/`APP_GID` 不匹配 | `.env` 中 `APP_UID`/`APP_GID` 需与 `l4d2/src/` owner 一致，否则容器构建或启动失败（SourceMod 日志 Permission denied） |
 | 挂载目录删不掉 | 大部分容器以 root 创建子目录，宿主普通用户无权删除。需要特权删除 `sudo rm -rf <目录>`，或 `docker run --rm -v $(pwd):/mnt alpine rm -rf /mnt/<目录>` |
 | 新注册用户无法设置管理员 | 网站注册后默认为普通用户，暂无管理后台设置入口。临时通过数据库手动设置：`./mysql.sh -e "UPDATE steam.users SET role='admin' WHERE username='你的用户名';"` |
-|各个快捷脚本都放在项目根目录|也许将脚本放入scripts/ 统一入口更好|
+| face/banner/addonlist.txt 硬编码 | 计划将这些静态文件独立为容器，避免迁移时需手动改 IP（见上「迁移提醒」） |
+| 快捷脚本散落在根目录 | 考虑统一收进 `scripts/` 目录，提供单一入口 |
