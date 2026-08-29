@@ -4,6 +4,18 @@
 
 ## API 端点
 
+sidecar 不直接暴露公网，前端通过 php 的 `/api/containers.php` 代理访问（登录 + admin，写操作另需 CSRF），由 php 服务端转发调用。
+
+**对外端点**（`/api/containers.php`）：
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `?action=list` | GET | 列出容器 |
+| `?action=logs&name=&tail=` | GET | 查看容器日志（最多 200 行） |
+| `?action=restart&name=` | POST | 重启容器（需在 `RESTARTABLE_CONTAINERS` 内） |
+
+**内部端点**（sidecar 自身，`X-Auth-Token` 头）：
+
 | 端点 | 方法 | 认证 | 说明 |
 |------|------|------|------|
 | `/health` | GET | — | 健康检查 |

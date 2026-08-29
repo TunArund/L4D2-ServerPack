@@ -6,7 +6,9 @@
 
 ---
 
-## 快速开始
+## 快速上手
+
+### 首次部署
 
 ```bash
 git clone --depth=1 https://github.com/TunArund/L4D2-ServerPack.git && cd L4D2-ServerPack
@@ -17,9 +19,7 @@ cp .env.example .env            # 编辑 .env，填入必填变量（见下方�
 ./docker.sh up                  # 启动所有服务
 ```
 
----
-
-## 更新部署
+### 更新部署
 
 改动源码或配置后，按改动位置选择生效方式：
 
@@ -32,9 +32,7 @@ cp .env.example .env            # 编辑 .env，填入必填变量（见下方�
 | `task-daemon`（`web/src/bin/*.php`） | `./docker.sh restart task-daemon`（长驻进程，需重启） |
 | `base-php/`、`nginx/Dockerfile` 等镜像 | `./docker.sh build` 后 `./docker.sh up` |
 
----
-
-## 环境变量配置
+### 环境变量
 
 所有配置集中在 `.env` 管理（模板见 `.env.example`，含每个变量的完整说明与默认值）。
 
@@ -68,9 +66,7 @@ BRAND_PSB=你的公安备案纯数字编码
 
 其余可选变量（COS、SES、L4D2 端口与启动参数、时区、镜像源、GitHub 推送凭据等）及其默认值，见 `.env.example`。
 
----
-
-## 备份与迁移
+### 备份与迁移
 
 数据分三部分：
 
@@ -80,7 +76,7 @@ BRAND_PSB=你的公安备案纯数字编码
 | 服务器配置 / addons | `l4d2/data/`（不含 `workshop/` 地图） | 冷备 `tar` |
 | 地图文件（.vpk） | COS 桶 | 无需 |
 
-### 日常备份
+**日常备份**：
 
 ```bash
 # ① 数据库 → backup/steam-时间戳.sql.gz
@@ -92,9 +88,7 @@ tar czf backup/l4d2-data.tgz --exclude='workshop' l4d2/data/
 docker compose start task-daemon l4d2 l4d2-versus
 ```
 
-### 迁移到新服务器
-
-**老服务器**导出两样东西（地图不用导）：
+**迁移到新服务器**——老服务器导出两样东西（地图不用导）：
 
 ```bash
 ./mysql.sh backup                                            # → backup/steam-*.sql.gz
@@ -102,28 +96,22 @@ tar czf backup/l4d2-data.tgz --exclude='workshop' l4d2/data/ # 配置/addons（�
 # 将整个 backup/ 目录传到新服务器
 ```
 
-**新服务器**依次恢复：
+新服务器依次恢复：
 
 ```bash
 # 1. 配置 .env 后先初始化数据库（建表）
 docker compose up -d mysql
-
 # 2. 恢复数据库（覆盖同名表）
 ./mysql.sh restore backup/steam-*.sql.gz
-
 # 3. 恢复服务器配置/addons
 tar xzf backup/l4d2-data.tgz
-
 # 4. 启动全部服务
 docker compose up -d
-
 # 5. 从 COS 拉回地图
 docker compose exec task-daemon php /var/www/html/bin/restore_from_cos.php
 ```
 
-### 迁移提醒（易漏项）
-
-`tar` 冷备会连同 `l4d2/data/` 里的 `motd.txt`/`host.txt` 一起打包，其中写死了**旧服务器公网 IP**，还原后要手动改成新 IP（或域名）：
+**迁移提醒（易漏项）**：`tar` 冷备会连同 `l4d2/data/` 里的 `motd.txt`/`host.txt` 一起打包，其中写死了**旧服务器公网 IP**，还原后要手动改成新 IP（或域名）：
 
 ```bash
 l4d2/data/coop/motd.txt       # → http://新IP/static/html/face.html
@@ -133,17 +121,13 @@ l4d2/data/versus/host.txt     # → http://新IP/static/html/banner.html
 
 另外 [face.html](web/src/static/html/face.html) 里硬编码了备案号、公安备案号和站点 title（静态页读不到 `.env`），换主体或域名时需同步改。其余站点配置（`SERVER_IP`、`BRAND_*`、`COS_*`）改 `.env` 即可。
 
-### 远程一键备份 / 迁移
-
-已在本机配置 SSH 免密登录到服务器时，用 `backup-pull.sh` 在远端执行备份、拉取到本地、可选还原，省去手动 `scp`：
+**远程一键备份 / 迁移**（已配置 SSH 免密登录时）：
 
 ```bash
 # 备份 + 拉取（安全，不碰本地数据）
 ./backup-pull.sh steam@1.2.3.4 /home/steam/L4D2-ServerPack
-
 # 备份 + 拉取 + 本地还原（需输入 yes，覆盖本地数据）
 ./backup-pull.sh steam@1.2.3.4 /home/steam/L4D2-ServerPack full
-
 # 查看帮助（子命令 backup|pull|all|restore|full）
 ./backup-pull.sh --help
 ```
@@ -152,11 +136,9 @@ l4d2/data/versus/host.txt     # → http://新IP/static/html/banner.html
 
 > 地图（.vpk）都在 `l4d2/data/coop/addons/workshop/`（即 `MAP_DIR`），已上传 COS；备份时用 `--exclude='workshop'` 排除，几十 GB 地图无需随备份拷贝，用 `restore_from_cos.php` 一键恢复即可。注意 `addons/` 下的插件（sourcemod/metamod 等）和自定义 `.vpk`（如 `少量尸潮.vpk`）不在 COS，仍需随 `tar` 备份。
 
----
+### SSL 证书
 
-## SSL 证书快速配置
-
-### 阿里云 DNS（推荐）
+**阿里云 DNS（推荐）**：
 
 ```bash
 # ① 安装 acme.sh
@@ -177,7 +159,7 @@ acme.sh --install-cert -d l4d2.tunarund.top \
   --reloadcmd      "docker exec l4d2-nginx nginx -s reload"
 ```
 
-### 腾讯云 DNSPod
+**腾讯云 DNSPod**：
 
 ```bash
 # AccessKey → https://console.dnspod.cn/account/token/token
@@ -191,7 +173,9 @@ nginx 配置路径 `./nginx/data/conf.d/l4d2.conf`。证书 90 天有效，acme.
 
 ---
 
-## 目录结构
+## 项目简介
+
+### 目录结构
 
 ```
 l4d2-server/
@@ -202,8 +186,8 @@ l4d2-server/
 ├── mysql.sh                    # MySQL 连接/密码/备份恢复
 ├── backup-pull.sh              # 远程备份拉取/还原
 ├── test.sh                     # 测试入口 (healthcheck + auto + manual)
-├── README.md                    # 项目总览（本文件）
-├── CHANGELOG.md                 # 更新日志
+├── README.md                   # 项目总览（本文件）
+├── CHANGELOG.md                # 更新日志
 │
 ├── base-php/                   # PHP 基础镜像
 ├── web/                        # PHP 应用
@@ -225,14 +209,12 @@ l4d2-server/
 │   └── initdb/                 # 初始化 SQL
 ├── test/
 │   ├── README.md               # 测试说明
-│   ├── script/                  # 测试脚本
-│   └── log/                     # 测试日志 (Git 忽略)
+│   ├── script/                 # 测试脚本
+│   └── log/                    # 测试日志 (Git 忽略)
 └── .env                        # (Git 忽略)
 ```
 
----
-
-## 架构
+### 架构
 
 ```mermaid
 graph TB
@@ -266,9 +248,7 @@ graph TB
 
 核心流程：用户通过 Web 面板提交地图请求 → php 写入数据库 → `task-daemon` 每 5 秒轮询下载 vpk 到共享 addons 卷 → 每日凌晨自动（或手动）同步到腾讯 COS。详细设计见各服务 README。
 
----
-
-## 容器清单
+### 容器清单
 
 | 容器 | 基础镜像 | 大小 | 作用 | 端口 |
 |------|----------|------|------|------|
@@ -280,17 +260,9 @@ graph TB
 | **glances** | `nicolargo/glances` | ~124MB | 系统监控 REST API（pid:host） | 61208（host 网络） |
 | **l4d2** | `ubuntu:22.04` | ~335MB | 游戏服务器 | 27015/udp+tcp |
 
-> l4d2 镜像仅含 32 位运行库，9.3GB 游戏文件通过 `${GAME_DIR}` bind mount，不进镜像。PHP 服务共用 `base-php` 预编译基础镜像（Alpine + gd/mysqli/pdo），避免重复编译。
+> l4d2 镜像仅含 32 位运行库，9.3GB 游戏文件通过 `${GAME_DIR}` bind mount 不进镜像，同一镜像复用为战役服（coop）与对抗服（versus）两个实例，通过覆盖挂载隔离配置，详见 [l4d2/README.md](l4d2/README.md)。PHP 服务共用 `base-php` 预编译基础镜像（Alpine + gd/mysqli/pdo），避免重复编译。
 
----
-
-## L4D2 游戏服务器
-
-镜像仅含 32 位运行库，游戏文件（~9.3GB）通过 `./l4d2.sh install` 下载到 `l4d2/src/` 后 bind mount。同一镜像可被战役服（coop）和对抗服（versus）两个实例复用，通过覆盖挂载实现配置隔离。详见 **[l4d2/README.md](l4d2/README.md)**。
-
----
-
-## 路由速查
+### 路由速查
 
 | 路径 | 后端 | 说明 |
 |------|------|------|
@@ -299,21 +271,7 @@ graph TB
 | `/api/monitor.php` | php-fpm → glances | 系统监控 JSON（登录） |
 | `*.css/js/png/...` | nginx 直接返回 | 静态资源缓存（30d/5m） |
 
----
-
-## 容器管理 API
-
-| 端点 | 认证 | 说明 |
-|------|------|------|
-| `GET /api/containers.php?action=list` | 登录+admin | 列出容器（`ALLOWED_CONTAINERS` 白名单） |
-| `GET /api/containers.php?action=logs&name=` | 登录+admin | 查看容器日志（最多 200 行） |
-| `POST /api/containers.php?action=restart&name=` | 登录+admin+CSRF | 重启容器（需在 `RESTARTABLE_CONTAINERS` 内） |
-
-> 前端不再直接持有 `SIDECAR_TOKEN`；由 php 服务端转发到 sidecar（内网）。详见 **[sidecar/README.md](sidecar/README.md)**。
-
----
-
-## 详细文档
+### 详细文档
 
 各服务内部架构、数据流、问题排查见各目录下的 README：
 
@@ -329,12 +287,6 @@ graph TB
 
 ---
 
-## 致谢
-
-https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载求生之路2服务器文件的指令。
-
----
-
 ## 已知问题 / 待办
 
 | 问题 | 说明 |
@@ -346,3 +298,9 @@ https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载�
 | 新注册用户无法设置管理员 | 网站注册后默认为普通用户，暂无管理后台设置入口。临时通过数据库手动设置：`./mysql.sh -e "UPDATE steam.users SET role='admin' WHERE username='你的用户名';"` |
 | face/banner/addonlist.txt 硬编码 | 计划将这些静态文件独立为容器，避免迁移时需手动改 IP（见上「迁移提醒」） |
 | 快捷脚本散落在根目录 | 考虑统一收进 `scripts/` 目录，提供单一入口 |
+
+---
+
+## 致谢
+
+https://github.com/KevonLin/l4d2-docker-zonemod 提供了 steamcmd 便捷下载求生之路2服务器文件的指令。
