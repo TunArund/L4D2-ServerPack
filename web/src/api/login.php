@@ -2,6 +2,12 @@
 // config 已由 bootstrap.php 自动加载
 // core / auth 已由 bootstrap.php 自动加载
 
+// 仅允许 HTTPS：明文下禁止登录，防止密码/会话被中间人窃取
+if (($_SERVER['HTTPS'] ?? '') !== 'on') {
+    http_response_code(403);
+    exit('登录仅支持 HTTPS，请通过 https 访问。');
+}
+
 $error_msg = '';
 
 // 处理登录请求

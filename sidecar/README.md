@@ -13,7 +13,9 @@
 
 ## 认证
 
-除 `/health` 外，所有请求需要 `X-Auth-Token` 头匹配 `SIDECAR_TOKEN` 环境变量。Token 为空则跳过认证。
+除 `/health` 外，所有请求需要 `X-Auth-Token` 头匹配 `SIDECAR_TOKEN` 环境变量。Token 为空则拒绝所有请求（返回 503）。
+
+> sidecar 不直接暴露公网，由 php 容器 `/api/containers.php` 代理访问（需登录 + admin + CSRF），`SIDECAR_TOKEN` 仅在服务端传递。
 
 ## 容器白名单
 

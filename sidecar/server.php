@@ -27,7 +27,10 @@ $sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 function requireAuth(): void
 {
     global $sidecarToken;
-    if ($sidecarToken === '') return; // 未配置 token 则跳过认证
+    if ($sidecarToken === '') {
+        json_out(['error' => '服务未配置认证令牌（SIDECAR_TOKEN 为空）'], 503);
+        exit;
+    }
     $provided = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
     if (!hash_equals($sidecarToken, $provided)) {
         json_out(['error' => 'unauthorized'], 401);
@@ -40,7 +43,6 @@ function json_out($data, int $code = 200): void
 {
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
-    header('Access-Control-Allow-Origin: *');
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 }
 
@@ -54,15 +56,6 @@ function docker(string ...$args): array
 // ---- 路由 ----
 $method = $_SERVER['REQUEST_METHOD'];
 $path   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-// CORS 预检
-if ($method === 'OPTIONS') {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
-    http_response_code(204);
-    exit;
-}
 
 // GET /health
 if ($method === 'GET' && $path === '/health') {

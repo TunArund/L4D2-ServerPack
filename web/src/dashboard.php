@@ -2,7 +2,6 @@
 // config / core / auth 已由 bootstrap.php 自动加载
 include_once 'navbar.php';
 $isAdmin = check_admin();
-$sidecarToken = getenv('SIDECAR_TOKEN') ?: '';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -146,10 +145,6 @@ printHeader("下载任务监控", $additions);
                 </div>
             </div>
         </div>
-        <script>
-            // sidecar 认证令牌（仅管理员可见）
-            window._SIDECAR_TOKEN = <?= json_encode($sidecarToken) ?>;
-        </script>
 <?php endif; ?>
     </div>
 

@@ -63,11 +63,13 @@ pcntl_signal(SIGTERM, function () use (&$running) {
  */
 function call_api(string $web_host, string $token, string $action): array {
     $url = "http://{$web_host}/api/map_manage.php?action=" . urlencode($action);
-    if ($token !== '') {
-        $url .= '&token=' . urlencode($token);
-    }
 
-    $ctx = stream_context_create(['http' => ['timeout' => 30, 'ignore_errors' => true]]);
+    $ctx_opts = ['http' => ['timeout' => 30, 'ignore_errors' => true]];
+    if ($token !== '') {
+        // token 走 header 而非 URL，避免落入 nginx access log；去换行防 header 注入
+        $ctx_opts['http']['header'] = 'X-Auth-Token: ' . str_replace(["\r", "\n"], '', $token);
+    }
+    $ctx = stream_context_create($ctx_opts);
     $response = @file_get_contents($url, false, $ctx);
 
     if ($response === false) {

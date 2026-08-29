@@ -429,7 +429,8 @@ update_all → 查 DB 出行数据 → fetch_steam_items_batch（并行）→ ap
 | 调用方 | 认证方式 |
 |--------|---------|
 | 浏览器用户 | Session（login → `$_SESSION['user_id']`） |
-| task-daemon → PHP API | `SIDECAR_TOKEN`（`hash_equals` 比对，通过 `?token=` 传递） |
+| task-daemon → PHP API | `SIDECAR_TOKEN`（`hash_equals` 比对，通过 `X-Auth-Token` 头传递） |
+| php → sidecar | `SIDECAR_TOKEN`（`X-Auth-Token` 头，服务端转发，不落前端） |
 | 前端 JS → API | Session cookie 自动携带 + `X-CSRF-Token` header（全局 fetch 拦截注入） |
 
 ## 9. 日志

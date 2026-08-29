@@ -4,10 +4,8 @@
 
 ```
 请求进入 :80/:443
-  ├── /api/*              → fastcgi_pass php:9000
+  ├── /api/*              → fastcgi_pass php:9000（容器管理 /api/containers.php、监控 /api/monitor.php 均由 php 服务端转发）
   ├── *.php               → fastcgi_pass php:9000
-  ├── /manage/*           → proxy_pass sidecar:8080
-  ├── /monitor-api/*      → proxy_pass host.docker.internal:61208
   └── *.css/.js/.png/...  → 直接返回静态文件
 ```
 
@@ -30,7 +28,7 @@
 | `fullchain.pem` | 完整证书链 |
 | `privkey.pem` | 私钥 |
 
-支持 HTTP（80）和 HTTPS（443），HTTP 不强制跳转。
+支持 HTTP（80）和 HTTPS（443）。HTTP 允许浏览公开内容，登录/注册跳转到 HTTPS。
 
 ## 关键文件
 
@@ -43,4 +41,4 @@
 
 ## 特殊配置
 
-- `client_max_body_size 2048m` — 允许上传大 vpk 文件
+- `client_max_body_size 8m` — 与 PHP `post_max_size`(8M) 对齐；web 无大文件上传（地图 .vpk 由 task-daemon 下载，不走 nginx）

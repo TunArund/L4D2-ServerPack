@@ -1,5 +1,12 @@
 <?php
 // config 已由 bootstrap.php 自动加载
+
+// 仅允许 HTTPS：明文下禁止注册，防止密码被中间人窃取
+if (($_SERVER['HTTPS'] ?? '') !== 'on') {
+    http_response_code(403);
+    exit('注册仅支持 HTTPS，请通过 https 访问。');
+}
+
 $username = '';
 $email = '';
 $password = '';

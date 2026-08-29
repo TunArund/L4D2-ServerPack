@@ -12,7 +12,7 @@ function delete_map_full(int $id): array
 }
 
 $sidcar_token = getenv('SIDECAR_TOKEN') ?: '';
-$api_token    = $_GET['token'] ?? '';
+$api_token    = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
 $is_internal  = ($sidcar_token !== '' && hash_equals($sidcar_token, $api_token));
 
 if (!$is_internal) {

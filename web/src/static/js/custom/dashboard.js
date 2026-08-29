@@ -411,10 +411,10 @@ async function updateMetrics() {
     try {
         pushLabel();
         const [cpuRes, memRes, fsRes, netRes] = await Promise.all([
-            fetch('/monitor-api/api/4/cpu'),
-            fetch('/monitor-api/api/4/mem'),
-            fetch('/monitor-api/api/4/fs'),
-            fetch('/monitor-api/api/4/network'),
+            fetch('/api/monitor.php?type=cpu'),
+            fetch('/api/monitor.php?type=mem'),
+            fetch('/api/monitor.php?type=fs'),
+            fetch('/api/monitor.php?type=network'),
         ]);
 
         if (!cpuRes.ok || !memRes.ok) throw new Error('API error');
@@ -500,9 +500,7 @@ setInterval(updateMetrics, INTERVAL);
 
     async function refreshLog(name, body, tail) {
         try {
-            const headers = {};
-            if (window._SIDECAR_TOKEN) headers['X-Auth-Token'] = window._SIDECAR_TOKEN;
-            const res = await fetch('/manage/containers/' + encodeURIComponent(name) + '/logs?tail=' + tail, { headers });
+            const res = await fetch('/api/containers.php?action=logs&name=' + encodeURIComponent(name) + '&tail=' + tail);
             const data = await res.json();
             const newText = data.logs || '(空)';
 
@@ -566,9 +564,7 @@ setInterval(updateMetrics, INTERVAL);
 
     async function updateContainers() {
         try {
-            const headers = {};
-            if (window._SIDECAR_TOKEN) headers['X-Auth-Token'] = window._SIDECAR_TOKEN;
-            const res = await fetch('/manage/containers', { headers });
+            const res = await fetch('/api/containers.php?action=list');
             if (!res.ok) throw new Error('API error ' + res.status);
             const data = await res.json();
             const viewable    = new Set(data.viewable    || []);
@@ -627,9 +623,7 @@ setInterval(updateMetrics, INTERVAL);
         btn.disabled = true;
         btn.textContent = '…';
         try {
-            const headers = {};
-            if (window._SIDECAR_TOKEN) headers['X-Auth-Token'] = window._SIDECAR_TOKEN;
-            const res = await fetch('/manage/containers/' + encodeURIComponent(name) + '/restart', { method: 'POST', headers });
+            const res = await fetch('/api/containers.php?action=restart&name=' + encodeURIComponent(name), { method: 'POST' });
             const data = await res.json();
             alert(res.ok ? ('✅ ' + name + ' 已重启') : ('❌ ' + (data.error || '未知错误')));
         } catch (e) {

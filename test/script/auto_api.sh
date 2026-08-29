@@ -13,7 +13,7 @@ if [ -z "$TOKEN" ]; then
 fi
 
 # token 认证通过
-RESP=$(curl -s "$HOST/api/map_manage.php?action=count&token=$TOKEN" 2>/dev/null || true)
+RESP=$(curl -s -H "X-Auth-Token: $TOKEN" "$HOST/api/map_manage.php?action=count" 2>/dev/null || true)
 if echo "$RESP" | grep -q '"success":true'; then
     echo -e "  \033[0;32m✓\033[0m token 认证通过"
 else

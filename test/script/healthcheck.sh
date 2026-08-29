@@ -112,7 +112,7 @@ echo ""
 echo "[每日更新]"
 TOKEN="${SIDECAR_TOKEN:-}"
 if [ -n "$TOKEN" ]; then
-    UPDATE_RESP=$(curl -s "$HOST/api/map_manage.php?action=count&token=$TOKEN" 2>/dev/null || true)
+    UPDATE_RESP=$(curl -s -H "X-Auth-Token: $TOKEN" "$HOST/api/map_manage.php?action=count" 2>/dev/null || true)
     if echo "$UPDATE_RESP" | grep -q '"success":true'; then
         echo -e "  \033[0;32m✓\033[0m map_manage token 认证通过"
     else

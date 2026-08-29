@@ -59,8 +59,6 @@ services:
     image: ${REGISTRY}l4d2-nginx:latest
     container_name: l4d2-nginx
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./web/src:/var/www/html:ro                  # 静态资源
       - ./nginx/data/nginx.conf:/etc/nginx/nginx.conf:ro  # 主配置
@@ -71,8 +69,6 @@ services:
       - "443:443"
     depends_on:
       - php
-      - sidecar
-      - glances
 
   # ============================================================
   # PHP-FPM（应用后端）
@@ -87,6 +83,8 @@ services:
     image: ${REGISTRY}l4d2-php:latest
     container_name: l4d2-php
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # monitor.php 转发到 host 网络下的 Glances
     environment:
       DB_HOST: mysql
       DB_DATABASE: ${DB_DATABASE}

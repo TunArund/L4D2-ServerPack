@@ -5,7 +5,8 @@
 
 root /var/www/html;
 index index.php;
-client_max_body_size 2048m;
+# 无大文件上传（地图 .vpk 由 task-daemon 下载，不走 nginx），上限与 PHP post_max_size(8M) 对齐
+client_max_body_size 8m;
 
 # ---- 第三方静态资源：长缓存 ----
 location ~* \.(jpg|jpeg|png|gif|webp|svg|woff|woff2|mp3|ico)$ {
@@ -37,30 +38,17 @@ location ~* \.js$ {
 
 # ---- PHP → FastCGI ----
 location ~ \.php$ {
+    limit_req zone=auth burst=5 nodelay;
+    limit_req zone=email burst=3 nodelay;
+    limit_req_status 429;
+
     fastcgi_pass php_backend;
     fastcgi_index index.php;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     fastcgi_param PHP_VALUE "auto_prepend_file=/var/www/html/etc/bootstrap.php";
+    fastcgi_param HTTPS $https;
+    fastcgi_param HTTP_X_AUTH_TOKEN $http_x_auth_token;
     include fastcgi_params;
-}
-
-# ---- /manage → sidecar ----
-location /manage/ {
-    proxy_pass http://sidecar_backend/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-
-# ---- /monitor-api → Glances REST API ----
-location /monitor-api/ {
-    proxy_pass http://glances_backend/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
 
 # ---- / → 前端路由 fallback ----

@@ -20,6 +20,15 @@ require_once TABLES_DIR . 'map_requests.php';
 require_once TABLES_DIR . 'map_request_users.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    // 会话 Cookie 加固：仅 HTTPS 发送（Secure）、禁止 JS 读取（HttpOnly）、SameSite=Lax。
+    // IP 明文访问时浏览器不携带会话，登录态不会在明文下泄露。
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => true,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 if (empty($_SESSION['csrf_token'])) {

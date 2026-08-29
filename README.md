@@ -19,6 +19,21 @@ cp .env.example .env            # 编辑 .env，填入必填变量（见下方�
 
 ---
 
+## 更新部署
+
+改动源码或配置后，按改动位置选择生效方式：
+
+| 改动位置 | 生效方式 |
+|----------|----------|
+| `docker-compose.yml` / `.env` | `./docker.sh up`（自动重建受影响容器） |
+| `nginx/data/` 配置 | `./docker.sh restart nginx`（或 `docker exec l4d2-nginx nginx -s reload`） |
+| `web/src/*.php` | 即时生效（php-fpm 无 opcache） |
+| `sidecar/server.php` | `./docker.sh restart sidecar` |
+| `task-daemon`（`web/src/bin/*.php`） | `./docker.sh restart task-daemon`（长驻进程，需重启） |
+| `base-php/`、`nginx/Dockerfile` 等镜像 | `./docker.sh build` 后 `./docker.sh up` |
+
+---
+
 ## 环境变量配置
 
 所有配置集中在 `.env` 管理（模板见 `.env.example`，含每个变量的完整说明与默认值）。
@@ -32,7 +47,7 @@ DB_DATABASE=steam
 DB_USER=steam
 DB_PASSWORD=your_db_password
 
-# ── 内部 API 令牌（sidecar / task-daemon 认证用，建议随机生成）──
+# ── 内部 API 令牌（php↔sidecar、task-daemon→php 服务间认证，建议随机生成）──
 SIDECAR_TOKEN=your_random_token
 
 # ── 文件权限（必须与 l4d2/src/ owner 一致，否则容器启动失败）──
@@ -51,7 +66,7 @@ BRAND_ICP=你的ICP备案号
 BRAND_PSB=你的公安备案纯数字编码
 ```
 
-其余可选变量（COS、SES、L4D2 端口与启动参数、时区、镜像源、GitHub 推送凭据等）及其默认值，见 `.env.example` 对应章节。
+其余可选变量（COS、SES、L4D2 端口与启动参数、时区、镜像源、GitHub 推送凭据等）及其默认值，见 `.env.example`。
 
 ---
 
@@ -63,7 +78,7 @@ BRAND_PSB=你的公安备案纯数字编码
 |------|------|----------|
 | 数据库（用户/地图元数据/任务） | MySQL | `./mysql.sh backup` |
 | 服务器配置 / addons | `l4d2/data/`（不含 `workshop/` 地图） | 冷备 `tar` |
-| 地图文件（.vpk） | 腾讯 COS 桶 | 无需备份，可从 COS 一键恢复 |
+| 地图文件（.vpk） | COS 桶 | 无需 |
 
 ### 日常备份
 
@@ -236,8 +251,8 @@ graph TB
     end
 
     NGINX -->|"*.php"| PHP
-    NGINX -->|"/manage"| SIDECAR
-    NGINX -->|"/monitor-api"| GLANCES
+    PHP -->|"/api/containers.php"| SIDECAR
+    PHP -->|"/api/monitor.php"| GLANCES
     PHP --> MYSQL
     DL --> MYSQL
     DL -->|"call_api()"| NGINX
@@ -248,7 +263,7 @@ graph TB
     ADDONS -.->|"shared volume"| L4D2
 ```
 
-**启动顺序**：`mysql` → `php` + `task-daemon` → `nginx` + `sidecar` + `glances`。`l4d2` 独立启动。
+**启动顺序**：`mysql` → `php` + `task-daemon` → `nginx`。`l4d2`、`sidecar`、`glances` 独立启动。
 
 核心流程：用户通过 Web 面板提交地图请求 → php 写入数据库 → `task-daemon` 每 5 秒轮询下载 vpk 到共享 addons 卷 → 每日凌晨自动（或手动）同步到腾讯 COS。详细设计见各服务 README。
 
@@ -262,8 +277,8 @@ graph TB
 | **php** | `php:8.3-fpm-alpine` | ~100MB | PHP 应用后端 | 9000 |
 | **mysql** | `mysql:8.0` | ~799MB | 数据库 | 3306 |
 | **task-daemon** | `php:8.3-cli-alpine` | ~100MB | `task_daemon` 地图下载 + 每日维护编排 | — |
-| **sidecar** | `php:8.3-cli-alpine` | ~150MB | 容器管理（挂载 docker.sock） | 8080 |
-| **glances** | `nicolargo/glances` | ~124MB | 系统监控 REST API（pid:host） | 61208 |
+| **sidecar** | `php:8.3-cli-alpine` | ~150MB | 容器管理（挂载 docker.sock，仅内网） | 8080（内网） |
+| **glances** | `nicolargo/glances` | ~124MB | 系统监控 REST API（pid:host） | 61208（host 网络） |
 | **l4d2** | `ubuntu:22.04` | ~335MB | 游戏服务器 | 27015/udp+tcp |
 
 > l4d2 镜像仅含 32 位运行库，9.3GB 游戏文件通过 `${GAME_DIR}` bind mount，不进镜像。PHP 服务共用 `base-php` 预编译基础镜像（Alpine + gd/mysqli/pdo），避免重复编译。
@@ -281,8 +296,8 @@ graph TB
 | 路径 | 后端 | 说明 |
 |------|------|------|
 | `/` `/api/*` | php-fpm | Web 管理面板 + REST API |
-| `/manage/*` | sidecar | 容器管理 API（需 Token） |
-| `/monitor-api/*` | glances | 系统监控 JSON |
+| `/api/containers.php` | php-fpm → sidecar | 容器管理（登录+admin，服务端转发） |
+| `/api/monitor.php` | php-fpm → glances | 系统监控 JSON（登录） |
 | `*.css/js/png/...` | nginx 直接返回 | 静态资源缓存（30d/5m） |
 
 ---
@@ -291,11 +306,11 @@ graph TB
 
 | 端点 | 认证 | 说明 |
 |------|------|------|
-| `GET /manage/health` | — | 健康检查 |
-| `GET /manage/containers` | Token | 列出容器（`ALLOWED_CONTAINERS` 白名单） |
-| `POST /manage/containers/{name}/restart` | Token | 重启容器（需在 `RESTARTABLE_CONTAINERS` 内） |
+| `GET /api/containers.php?action=list` | 登录+admin | 列出容器（`ALLOWED_CONTAINERS` 白名单） |
+| `GET /api/containers.php?action=logs&name=` | 登录+admin | 查看容器日志（最多 200 行） |
+| `POST /api/containers.php?action=restart&name=` | 登录+admin+CSRF | 重启容器（需在 `RESTARTABLE_CONTAINERS` 内） |
 
-> 详见 **[sidecar/README.md](sidecar/README.md)**。
+> 前端不再直接持有 `SIDECAR_TOKEN`；由 php 服务端转发到 sidecar（内网）。详见 **[sidecar/README.md](sidecar/README.md)**。
 
 ---
 
