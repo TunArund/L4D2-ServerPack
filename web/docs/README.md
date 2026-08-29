@@ -12,6 +12,7 @@
 | [../mysql/README.md](../mysql/README.md) | 数据库结构、迁移脚本 |
 | [2026-07-17-architecture-simplify.md](2026-07-17-architecture-simplify.md) | 架构简化方案（2026-07-17 实施） |
 | [2026-07-16-architecture-discussion.md](2026-07-16-architecture-discussion.md) | 架构讨论记录 |
+| [2026-08-29-backlog.md](2026-08-29-backlog.md) | 待办评估（独立容器 / COS 签名直链 / 自动更新测试 / steamcmd 订阅） |
 
 ---
 

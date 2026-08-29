@@ -136,7 +136,7 @@ l4d2/data/versus/host.txt     # → http://新IP/static/html/banner.html
 
 > 地图（.vpk）都在 `l4d2/data/coop/addons/workshop/`（即 `MAP_DIR`），已上传 COS；备份时用 `--exclude='workshop'` 排除，几十 GB 地图无需随备份拷贝，用 `restore_from_cos.php` 一键恢复即可。注意 `addons/` 下的插件（sourcemod/metamod 等）和自定义 `.vpk`（如 `少量尸潮.vpk`）不在 COS，仍需随 `tar` 备份。
 
-### SSL 证书
+### 附：SSL 证书快速配置
 
 **阿里云 DNS（推荐）**：
 
