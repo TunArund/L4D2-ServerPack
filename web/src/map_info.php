@@ -212,13 +212,13 @@ function print_comments($map_id)
   $carousel = new CarouselGenerator('img_carousel', $img_urls);
   $renderedCarousel = $carousel->render();
 
-  // 构建 COS 加速下载按钮（登录后点击时请求签名直链）
+  // 构建 国内直链下载按钮（登录后点击时请求签名直链）
   $cdn_buttons = '';
   if ($cos_url) {
       if (check_login()) {
-          $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">COS 加速下载</button></p>\n";
+          $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">国内直链下载</button></p>\n";
       } else {
-          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 COS 加速下载</a></p>\n";
+          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 国内直链下载</a></p>\n";
       }
   }
   $safe_dl = htmlspecialchars($downlink, ENT_QUOTES, 'UTF-8');
