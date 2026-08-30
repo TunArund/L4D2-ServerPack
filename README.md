@@ -287,6 +287,20 @@ graph TB
 
 ---
 
+## 开发辅助（php-dev.sh）
+
+本地开发常用命令（基于 `l4d2-base-php-cli` 镜像，dev profile，不随主 compose 启动）：
+
+| 命令 | 作用 |
+|------|------|
+| `./php-dev.sh` | 进入 php 容器 shell |
+| `./php-dev.sh lint <file.php>` | 单文件 PHP 语法检查 |
+| `./php-dev.sh lint-all` | 检查 `web/src` 下所有 PHP 文件语法 |
+| `./php-dev.sh serve` | 启动内置服务器 http://localhost:8080 |
+| `./php-dev.sh exec <cmd>` | 容器内执行任意命令 |
+
+---
+
 ## 已知问题 / 待办
 
 | 问题 | 说明 |
