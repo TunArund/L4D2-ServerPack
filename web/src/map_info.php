@@ -212,11 +212,14 @@ function print_comments($map_id)
   $carousel = new CarouselGenerator('img_carousel', $img_urls);
   $renderedCarousel = $carousel->render();
 
-  // 构建 CDN 下载按钮
+  // 构建 COS 加速下载按钮（登录后点击时请求签名直链）
   $cdn_buttons = '';
   if ($cos_url) {
-      $safe_cos = htmlspecialchars($cos_url, ENT_QUOTES, 'UTF-8');
-      $cdn_buttons .= "<p><a class=\"btn btn-primary\" href=\"{$safe_cos}\" target=\"_blank\">腾讯CDN（直链下载）</a></p>\n";
+      if (check_login()) {
+          $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">COS 加速下载</button></p>\n";
+      } else {
+          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 COS 加速下载</a></p>\n";
+      }
   }
   $safe_dl = htmlspecialchars($downlink, ENT_QUOTES, 'UTF-8');
   $cdn_buttons .= "<p><a class=\"btn btn-success\" href=\"{$safe_dl}\" target=\"_blank\">SteamCDN（直链下载）</a></p>";
@@ -247,6 +250,29 @@ function print_comments($map_id)
   print_comments($id);
   ?>
 
+<script>
+(function () {
+  var btn = document.getElementById('cos-dl');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    fetch('/api/cos_link.php?map_id=' + encodeURIComponent(btn.dataset.mapId), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.success) {
+          window.location.href = d.data.url;
+        } else {
+          alert((d && d.message) || '获取下载链接失败');
+          btn.disabled = false;
+        }
+      })
+      .catch(function () {
+        alert('请求失败，请重试');
+        btn.disabled = false;
+      });
+  });
+})();
+</script>
 </body>
 
 </html>

@@ -147,7 +147,7 @@ function daily_maintenance(PDO $pdo, string $web_host, string $token, int $updat
 }
 
 /**
- * 执行 COS 同步（上传 + 索引页 + 孤儿清理）
+ * 执行 COS 同步（上传 + 孤儿清理）
  *
  * @return array ['success' => bool, 'data' => [...]]
  */
@@ -157,18 +157,16 @@ function run_cos_sync(PDO $pdo): array {
     }
 
     $tasks   = cos_batch_create_tasks($pdo);
-    $index   = cos_sync_index();
     $cleanup = cos_cleanup_orphans($pdo);
 
     $recovered_info = ($tasks['recovered'] ?? 0) > 0 ? "（含 {$tasks['recovered']} 个 COS 文件缺失恢复）" : "";
-    $message = "COS 同步：已创建 {$tasks['created']} 个上传任务{$recovered_info}" . ($tasks['skipped'] > 0 ? "（{$tasks['skipped']} 个文件缺失）" : "") . " | 索引页 " . ($index['success'] ? '✓' : '✗') . " | 清理孤儿 {$cleanup['deleted']} 个";
+    $message = "COS 同步：已创建 {$tasks['created']} 个上传任务{$recovered_info}" . ($tasks['skipped'] > 0 ? "（{$tasks['skipped']} 个文件缺失）" : "") . " | 清理孤儿 {$cleanup['deleted']} 个";
 
     return [
         'success' => true,
         'data'    => [
             'message' => $message,
             'upload'  => $tasks,
-            'index'   => $index,
             'cleanup' => $cleanup,
         ],
     ];

@@ -13,8 +13,8 @@ define('COS_SECRET_KEY', getenv('COS_SECRET_KEY') ?: '');
 define('COS_BUCKET',     getenv('COS_BUCKET')     ?: '');
 define('COS_REGION',     getenv('COS_REGION')     ?: 'ap-guangzhou');
 define('COS_SCHEME',     getenv('COS_SCHEME')     ?: 'https');
-// 可选：自定义域名/CDN 加速域名（如启用则直接返回该域名拼接的 URL）
-define('COS_CUSTOM_DOMAIN', getenv('COS_CUSTOM_DOMAIN') ?: '');
+// 预签名下载链接有效期（秒），由 api/cos_link.php 生成下载直链时使用
+define('COS_PRESIGN_EXPIRE', (int)(getenv('COS_PRESIGN_EXPIRE') ?: 60));
 
 // 独立于 tools.php 的轻量辅助函数（不依赖外部 include）
 if (!function_exists('array_error')) {
@@ -209,56 +209,6 @@ function cos_delete_object(string $cos_key): array {
 }
 
 /**
- * 从模板构建 index.html（替换 {{...}} 占位符）
- *
- * @param string $tpl_path 模板文件路径
- * @return string HTML 内容
- * @throws RuntimeException 模板文件不存在时
- */
-function cos_build_index_html(string $tpl_path = '/var/www/html/static/html/cos_index.html'): string {
-    if (!file_exists($tpl_path)) {
-        throw new \RuntimeException("COS index template not found: {$tpl_path}");
-    }
-
-    $cdn_domain = COS_CUSTOM_DOMAIN !== '' ? rtrim(COS_CUSTOM_DOMAIN, '/') : '';
-    $api_base   = COS_SCHEME . '://' . cos_host();
-    $cdn_base   = $cdn_domain ?: $api_base;
-    $page_title = $cdn_domain ? preg_replace('#^https?://#', '', $cdn_domain) : cos_host();
-
-    $tpl = file_get_contents($tpl_path);
-    return str_replace(
-        ['{{COS_BUCKET}}', '{{COS_REGION}}', '{{COS_API_BASE}}', '{{COS_CDN_BASE}}', '{{COS_PAGE_TITLE}}'],
-        [COS_BUCKET, COS_REGION, $api_base, $cdn_base, $page_title],
-        $tpl
-    );
-}
-
-/**
- * 构建并上传 index.html 到 COS 桶根
- *
- * @param string $tpl_path 模板文件路径
- * @return array ['success' => bool, 'message' => string]
- */
-function cos_sync_index(string $tpl_path = '/var/www/html/static/html/cos_index.html'): array {
-    if (!cos_configured()) {
-        return array_error('COS 未配置');
-    }
-
-    try {
-        $html = cos_build_index_html($tpl_path);
-    } catch (\RuntimeException $e) {
-        return array_error($e->getMessage());
-    }
-
-    $tmp = tempnam(sys_get_temp_dir(), 'cosidx');
-    file_put_contents($tmp, $html);
-    $res = cos_upload_file($tmp, '/index.html', 'text/html; charset=utf-8', 2);
-    unlink($tmp);
-
-    return $res;
-}
-
-/**
  * 清理 COS 中无对应活跃地图的孤儿 .vpk 文件
  *
  * 获取所有 active 地图的文件名 → 列出 COS 中所有 .vpk → 删除不在 active 集合中的。
@@ -330,12 +280,59 @@ function cos_host(): string {
  * @return string 完整访问 URL
  */
 function cos_object_url(string $key): string {
-    if (COS_CUSTOM_DOMAIN !== '') {
-        // 去除末尾斜杠后拼接
-        $domain = rtrim(COS_CUSTOM_DOMAIN, '/');
-        return $domain . '/' . ltrim($key, '/');
-    }
     return COS_SCHEME . '://' . cos_host() . '/' . ltrim($key, '/');
+}
+
+/**
+ * 生成 COS 对象的预签名下载 URL（腾讯云 V5 签名，q-sign-algorithm=sha1）
+ *
+ * 使用永久密钥 + 时效控制，URL 在 COS_PRESIGN_EXPIRE 秒内有效，过期后需重新生成。
+ * 仅对 COS 源站域名生效（私有桶下公网直链返回 403，需走此签名直链）。
+ *
+ * 签名公式（参考 https://cloud.tencent.com/document/product/436/14690）：
+ *   KeyTime      = (now-60) . ';' . (now+expires)      // 起点前移容忍时钟偏移
+ *   SignKey      = HMAC-SHA1(SecretKey, KeyTime)        // hex 字符串，作下一轮密钥
+ *   HttpString   = "get\n{uri}\n\n\n"                   // GET 无自定义头/参数
+ *   StringToSign = "sha1\n" + KeyTime + "\n" + SHA1(HttpString) + "\n"
+ *   Signature    = HMAC-SHA1(SignKey, StringToSign)     // hex 小写
+ *
+ * @param string $key     对象键，如 "foo.vpk"
+ * @param int    $expires 有效期（秒），默认取 COS_PRESIGN_EXPIRE
+ * @return array ['success' => bool, 'data' => ['url', 'expires_in'] | 'message' => string]
+ */
+function cos_presign_url(string $key, ?int $expires = null): array {
+    if (!cos_configured()) {
+        return array_error('COS 未配置');
+    }
+    $expires = $expires ?? COS_PRESIGN_EXPIRE;
+    if ($expires <= 0) {
+        $expires = 60;
+    }
+
+    // 规范化对象键并做 URL 编码（对象键为单段，如 {disk_safe}.vpk）
+    $key = ltrim($key, '/');
+    $uri = '/' . rawurlencode($key);
+
+    $now      = time();
+    $key_time = ($now - 60) . ';' . ($now + $expires);
+
+    $sign_key       = hash_hmac('sha1', $key_time, COS_SECRET_KEY);
+    $http_string    = "get\n{$uri}\n\n\n";
+    $string_to_sign = "sha1\n{$key_time}\n" . sha1($http_string) . "\n";
+    $signature      = hash_hmac('sha1', $string_to_sign, $sign_key);
+
+    $query = 'q-sign-algorithm=sha1'
+        . '&q-ak=' . rawurlencode(COS_SECRET_ID)
+        . '&q-sign-time=' . rawurlencode($key_time)
+        . '&q-key-time=' . rawurlencode($key_time)
+        . '&q-header-list='
+        . '&q-url-param-list='
+        . '&q-signature=' . $signature;
+
+    return array_success([
+        'url'        => COS_SCHEME . '://' . cos_host() . $uri . '?' . $query,
+        'expires_in' => $expires,
+    ]);
 }
 
 /**

@@ -35,8 +35,7 @@ flowchart TD
 `run_cos_sync()` 本地直接执行（addons 卷仅本容器挂载，不走 HTTP API）：
 
 1. `cos_batch_upload()` — 查询 `maps WHERE status='active' AND cos_version != version`，上传变化的 .vpk
-2. `cos_sync_index()` — 生成并上传 `index.html`（COS 桶目录浏览页）
-3. `cos_cleanup_orphans()` — 删除 COS 中存在但 DB 无对应 active 记录的孤儿 .vpk
+2. `cos_cleanup_orphans()` — 删除 COS 中存在但 DB 无对应 active 记录的孤儿 .vpk
 
 **触发方式**：
 | 方式 | 机制 |

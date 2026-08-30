@@ -108,7 +108,7 @@ services:
       COS_SECRET_KEY: ${COS_SECRET_KEY}
       COS_BUCKET: ${COS_BUCKET}
       COS_REGION: ${COS_REGION}
-      COS_CUSTOM_DOMAIN: ${COS_CUSTOM_DOMAIN}
+      COS_PRESIGN_EXPIRE: ${COS_PRESIGN_EXPIRE}
       COS_SCHEME: ${COS_SCHEME}
       MAP_DIR: ${MAP_DIR}
       LOG_DIR: ${LOG_DIR}
@@ -148,7 +148,6 @@ services:
       COS_SECRET_KEY: ${COS_SECRET_KEY}
       COS_BUCKET: ${COS_BUCKET}
       COS_REGION: ${COS_REGION}
-      COS_CUSTOM_DOMAIN: ${COS_CUSTOM_DOMAIN}
       COS_SCHEME: ${COS_SCHEME}
     volumes:
       - ./web/src/etc:/var/www/html/etc:ro
