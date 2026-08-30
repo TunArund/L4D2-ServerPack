@@ -265,7 +265,8 @@ cmd_clean() {
     docker system df
     echo ""
     docker image prune -f
-    docker builder prune -f
+    # 只清理构建缓存，按最近使用优先保留最多 5GB，避免下次 build 全部重新下载
+    docker builder prune --max-used-space=5GB -f
     echo ""
     echo ">>> 清理后磁盘占用:"
     docker system df
@@ -286,7 +287,7 @@ show_help() {
     echo "  logs [svc]      查看日志"
     echo "  pull            从 ghcr.io 拉取镜像"
     echo "  push [ver]      构建并推送到 ghcr.io (需 GITHUB_TOKEN)"
-    echo "  clean           清理悬空镜像和构建缓存"
+    echo "  clean           清理悬空镜像和过期构建缓存（缓存上限 5GB）"
     echo ""
     echo "示例:"
     echo "  ./docker.sh install          # 新机器第一步"
