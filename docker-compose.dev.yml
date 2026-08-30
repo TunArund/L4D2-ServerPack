@@ -1,0 +1,26 @@
+# ============================================================
+# 开发环境覆盖 — php-dev 提供 PHP CLI 用于本地开发
+# 使用方式:
+#   语法检查:  docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm php-dev sh
+#             然后在容器内: php -l /var/www/html/your-file.php
+#   内置服务器: docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --service-ports php-dev php -S 0.0.0.0:8080 -t /var/www/html
+# ============================================================
+services:
+  php-dev:
+    image: ${REGISTRY}l4d2-base-php-cli:latest
+    container_name: l4d2-php-dev
+    stdin_open: true
+    tty: true
+    working_dir: /var/www/html
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./web/src:/var/www/html
+    ports:
+      - "8080:8080"
+    command: sh  # 默认进入 shell；按 Ctrl+D 退出
+    profiles:
+      - dev  # 不会随主 compose 启动，需要手动 run
