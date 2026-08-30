@@ -296,7 +296,7 @@ graph TB
 | `APP_UID`/`APP_GID` 不匹配 | `.env` 中 `APP_UID`/`APP_GID` 需与 `l4d2/src/` owner 一致，否则容器构建或启动失败（SourceMod 日志 Permission denied） |
 | 挂载目录删不掉 | 大部分容器以 root 创建子目录，宿主普通用户无权删除。需要特权删除 `sudo rm -rf <目录>`，或 `docker run --rm -v $(pwd):/mnt alpine rm -rf /mnt/<目录>` |
 | 新注册用户无法设置管理员 | 网站注册后默认为普通用户，暂无管理后台设置入口。临时通过数据库手动设置：`./mysql.sh -e "UPDATE steam.users SET role='admin' WHERE username='你的用户名';"` |
-| face/banner/addonlist.txt 硬编码 | 计划将这些静态文件独立为容器，避免迁移时需手动改 IP（见上「迁移提醒」） |
+| face/banner/addonlist.txt 硬编码 | 已定轻方案（不独立容器）：备案号/title 改 PHP 读 `.env` 或 `envsubst` 模板替换，addonlist.txt 由 task-daemon 动态生成，详见 [web/docs/2026-08-29-backlog.md](web/docs/2026-08-29-backlog.md) |
 | 快捷脚本散落在根目录 | 考虑统一收进 `scripts/` 目录，提供单一入口 |
 
 ---

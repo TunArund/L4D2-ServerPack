@@ -10,9 +10,9 @@
 | [../task-daemon/README.md](../task-daemon/README.md) | 守护进程主循环、下载流程、COS 同步、每日维护 |
 | [../nginx/README.md](../nginx/README.md) | 路由分发、SSL、缓存策略 |
 | [../mysql/README.md](../mysql/README.md) | 数据库结构、迁移脚本 |
-| [2026-07-17-architecture-simplify.md](2026-07-17-architecture-simplify.md) | 架构简化方案（2026-07-17 实施） |
-| [2026-07-16-architecture-discussion.md](2026-07-16-architecture-discussion.md) | 架构讨论记录 |
-| [2026-08-29-backlog.md](2026-08-29-backlog.md) | 待办评估（独立容器 / COS 签名直链 / 自动更新测试 / steamcmd 订阅） |
+| [2026-07-17-architecture-simplify.md](docs/2026-07-17-architecture-simplify.md) | 架构简化方案（2026-07-17 实施） |
+| [2026-07-16-architecture-discussion.md](docs/2026-07-16-architecture-discussion.md) | 架构讨论记录 |
+| [2026-08-29-backlog.md](docs/2026-08-29-backlog.md) | 待办评估（独立容器 / COS 签名直链 / 自动更新测试 / steamcmd 订阅） |
 
 ---
 
@@ -78,7 +78,7 @@ web/src/
 │   │       └── map_request.js        ← 地图申请 ES module
 │   ├── font/                         ← Bootstrap Icons
 │   ├── img/ / audio/ / video/        ← 媒体资源
-│   └── html/                         ← COS 目录浏览页模板等
+│   └── html/                         ← 静态 HTML（face/banner/验证码模板等）
 │
 ├── index.php                         ← 首页（全屏视频 + 服务器信息）
 ├── dashboard.php                     ← 仪表盘（下载/上传任务 + 服务器资源 + Docker 管理）
@@ -187,7 +187,7 @@ web/src/
 | `cos_configured()` | COS 是否已配置 |
 | `cos_batch_create_tasks($pdo)` | 扫描本地 .vpk + COS 完整性检查，批量创建上传任务 |
 | `process_upload_task($pdo, $task)` | 处理单个上传任务（进度回调 + 写完 cos_version） |
-| `cos_sync_index()` | 同步 COS 目录浏览页（index.html） |
+| `cos_presign_url($key, $expires)` | 生成预签名下载直链（V5 签名，登录用户下载用） |
 | `cos_cleanup_orphans($pdo)` | 清理 COS 孤儿文件 |
 | `cos_upload_file($key, $path)` | 流式上传单个文件（CURLOPT_INFILE） |
 | `cos_delete_object($key)` | 删除 COS 对象 |
@@ -322,7 +322,7 @@ erDiagram
         json records "录像嵌入代码"
         int subscriptions "订阅数"
         bool is_map "是否地图类型"
-        string cos_url "COS 公网 URL"
+        string cos_url "COS 源站 URL（私有桶）"
         int cos_version "已上传 COS 的 version"
     }
 
@@ -392,12 +392,11 @@ sequenceDiagram
     TD->>TD: cos_batch_create_tasks() 扫描变化的 .vpk
     TD->>COS: PUT .vpk 文件
     TD->>DB: UPDATE maps SET cos_url=..., cos_version=...
-    TD->>COS: PUT index.html（目录浏览页）
     TD->>COS: DELETE 孤儿 .vpk（DB 中无对应 active 记录）
 
     Note over U,L4D2: ⑤ 玩家下载
     L4D2->>L4D2: 读取 addons/workshop/*.vpk
-    GAME->>COS: 玩家通过 CDN 下载地图
+    GAME->>COS: 玩家通过预签名直链下载地图
 ```
 
 ### COS 同步触发方式
@@ -460,4 +459,4 @@ task-daemon 主循环中检测跨日自动刷新 `ini_set('error_log', ...)`。
 
 ## 11. 待办
 
-- **task-daemon 独立部署**：daemon 迁至 `./task-daemon/src/`，共享层（`lib/` + `tables/` + `etc/config.php`）提取到项目根目录，web 和 daemon 各自引用（见 [架构简化方案](2026-07-17-architecture-simplify.md) 讨论）
+- **task-daemon 独立部署**：daemon 迁至 `./task-daemon/src/`，共享层（`lib/` + `tables/` + `etc/config.php`）提取到项目根目录，web 和 daemon 各自引用（见 [架构简化方案](docs/2026-07-17-architecture-simplify.md) 讨论）
