@@ -1,25 +1,75 @@
 # CHANGELOG
 
-## 2026-08-29 — 安全加固：监控与容器管理鉴权收敛
+## 2026-08-30 — COS 登录签名直链 + 清理自定义域名与目录浏览页
 
-### 监控接口鉴权（Glances）
+- 私有桶下公开 `cos_url` 直链失效（403），改为登录用户点击下载时经 `api/cos_link.php` 现签 COS V5 预签名 URL（新增 `cos_presign_url()`），短时效（默认 60s）近似「单次有效」
+- 新增 `COS_PRESIGN_EXPIRE` 环境变量
+- 移除已废弃的 `COS_CUSTOM_DOMAIN`（自定义源站域名）与 `cos_index` 目录浏览页（`cos_build_index_html` / `cos_sync_index`）
+- `task-daemon` `run_cos_sync` 移除索引页同步步骤
 
-- **问题**：`/monitor-api/*` 由 nginx 直接代理到 Glances（`pid:host` + `network_mode:host`），无鉴权，公网可任意读取宿主机 CPU/内存/磁盘/网络等指标
-- **修复**：关闭 nginx 公开代理，新增 `api/monitor.php` 做登录校验 + `type` 白名单硬编码映射，服务端转发到 Glances；php 容器加 `host.docker.internal`；前端 4 个 `fetch` 改指代理
+### 升级操作
 
-### 容器管理鉴权收敛（sidecar）
+- `.env`：新增 `COS_PRESIGN_EXPIRE=60`，删除 `COS_CUSTOM_DOMAIN`
+- 重建 php 容器注入环境变量：`docker compose up -d php`
+- 重建 task-daemon 镜像与容器：`docker compose build task-daemon && docker compose up -d task-daemon`（旧镜像 entrypoint 指向已废弃路径）
 
-- **问题**：
-  1. sidecar `requireAuth()` 在 `SIDECAR_TOKEN` 为空时直接放行，挂载 `docker.sock` 的容器管理接口可无鉴权调用
-  2. `SIDECAR_TOKEN` 通过 `window._SIDECAR_TOKEN` 输出到前端页面，token 泄露给浏览器（且 `dashboard.php` 未强制登录）
-  3. sidecar 响应头 `Access-Control-Allow-Origin: *`，任意站点可跨域调用
-- **修复**：
-  1. 空 token 改为拒绝所有请求（返回 503）
-  2. 新增 `api/containers.php`（admin + CSRF）服务端转发到 sidecar；前端不再持有 `SIDECAR_TOKEN`，统一走 session
-  3. 删除 sidecar 全部 CORS 相关代码
-  4. nginx 移除 `/manage/*` 公开代理，清理 `sidecar_backend`/`glances_backend` upstream、nginx 的 `host.docker.internal` extra_hosts 及对 sidecar/glances 的 `depends_on`
+### 涉及文件
 
-`SIDECAR_TOKEN` 自此回归单一用途——服务间调用（php↔sidecar、task-daemon→php），不再进入浏览器。
+| 文件 | 操作 |
+|------|------|
+| `web/src/lib/cos.php` | 新增 `cos_presign_url()`；移除 `COS_CUSTOM_DOMAIN` / `cos_build_index_html` / `cos_sync_index` |
+| `web/src/api/cos_link.php` | 新增（登录门槛 + 现签签名直链） |
+| `web/src/map_info.php` | 修改（下载按钮登录态渲染 + 点击 fetch） |
+| `web/src/bin/task_daemon.php` | 修改（run_cos_sync 去索引页） |
+| `web/src/static/html/cos_index.html` | 删除 |
+| `docker-compose.yml` | 修改（+COS_PRESIGN_EXPIRE、-COS_CUSTOM_DOMAIN） |
+| `.env.example` | 修改（+COS_PRESIGN_EXPIRE、-COS_CUSTOM_DOMAIN） |
+| `task-daemon/README.md` | 修改（同步去索引页） |
+
+## 2026-08-30 — 文档整理：web README 归位 + 清理历史决策文档
+
+- `web/docs/README.md` 移至 `web/README.md`，修复全局与内部失效链接
+- 删除 `web/docs/` 下 5 个已完成/已废弃的历史文档（架构讨论、审计、优化路线图、架构简化、Model 层），内容已沉淀于 CHANGELOG 与各服务 README
+- 待办收敛至 `web/docs/2026-08-29-backlog.md`：COS 直链标记已完成，新增「历史遗留」节合并散落待办
+
+### 升级操作
+
+- 无需操作（纯文档整理）
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/README.md` | 新增（自 web/docs 移入）+ 修改（去失效链接） |
+| `web/docs/2026-07-16-architecture-discussion.md` 等 5 个 | 删除 |
+| `web/docs/2026-08-29-backlog.md` | 修改（COS 已完成 + 历史遗留待办） |
+| `README.md` | 修改（web/README 链接 + 过时待办） |
+
+## 2026-08-29 — 安全加固（鉴权收敛 / HTTPS / 限流）
+
+### 监控与容器管理鉴权收敛
+
+- **监控接口鉴权（Glances）**：`/monitor-api/*` 原由 nginx 直接代理到 Glances，无鉴权、公网可读宿主机指标。修复：关闭公开代理，新增 `api/monitor.php` 登录校验 + `type` 白名单，服务端转发；php 加 `host.docker.internal`；前端 4 个 fetch 改指代理
+- **容器管理鉴权收敛（sidecar）**：`requireAuth()` 空 token 放行、`SIDECAR_TOKEN` 泄露到前端、CORS `*`。修复：空 token 拒绝（503）、新增 `api/containers.php`（admin+CSRF）服务端转发、删除 CORS、nginx 移除 `/manage/*` 公开代理与相关 upstream/extra_hosts/depends_on
+- `SIDECAR_TOKEN` 自此仅用于服务间调用（php↔sidecar、task-daemon→php），不进浏览器
+
+### HTTP 强制 HTTPS + 登录信息防泄露
+
+- 域名 `:80` 由明文 serve 改为 301 跳 HTTPS；IP 直访保留公开内容但 login/register 301 到域名 HTTPS
+- session cookie 加固：`Secure` + `HttpOnly` + `SameSite=Lax`；`login.php`/`register.php` 强制 HTTPS（非 HTTPS 403）；nginx 传 `fastcgi_param HTTPS $https`
+
+### 收紧请求体上限 + nginx 文档同步
+
+- `client_max_body_size` 2048m → 8m，与 PHP `post_max_size`(8M) 对齐，消除 DoS 攻击面
+- `nginx/README.md` 同步路由图、HTTP 行为、body 上限说明
+
+### 内部 token 改走 header
+
+- `SIDECAR_TOKEN` 从 URL `?token=` 改为 `X-Auth-Token` header，避免 token 落入 access log；nginx 显式透传 `HTTP_X_AUTH_TOKEN`；同步 test 脚本与文档
+
+### 接口限流（IP 级防暴力破解）
+
+- nginx `limit_req` 按客户端 IP 限流，弥补 PHP session 级 `rate_limit`「无 Cookie 可绕过」缺陷；`map` 仅敏感端点映射真实 IP，其余空 key 跳过；login/register 5 r/m、check_email 3 r/m，超限 429
 
 ### 涉及文件
 
@@ -30,74 +80,16 @@
 | `sidecar/server.php` | 修改（空 token 拒绝 + 删除 CORS） |
 | `web/src/dashboard.php` | 修改（移除 token 输出） |
 | `web/src/static/js/custom/dashboard.js` | 修改（改走 php 代理，移除 X-Auth-Token） |
-| `nginx/data/conf.d/common.inc` | 修改（移除 /manage 与 /monitor-api 公开代理） |
-| `nginx/data/conf.d/l4d2.conf` | 修改（移除 sidecar/glances upstream） |
-| `docker-compose.yml` | 修改（php +extra_hosts；nginx -extra_hosts、-depends_on） |
-| `README.md` / `sidecar/README.md` / `web/docs/README.md` | 修改（架构图、路由表、认证说明） |
-
-## 2026-08-29 — 安全加固：HTTP 强制 HTTPS + 登录信息防泄露
-
-### HTTP → HTTPS 重定向
-
-- 域名 `:80` 由「明文 serve 完整站点」改为 `301` 跳转到 HTTPS
-- IP 直访（`default_server :80`）保留可浏览公开内容，但 `/api/login.php`、`/api/register.php` 强制 `301` 到域名 HTTPS
-
-### 登录信息防泄露
-
-- session cookie 加固：`Secure`（仅 HTTPS 发送）+ `HttpOnly`（禁 JS 读取）+ `SameSite=Lax` —— IP 明文访问时浏览器不携带会话，登录态不在明文下泄露
-- `api/login.php` / `api/register.php` 强制 HTTPS：非 HTTPS 返回 403，防止密码明文提交
-- nginx 向 PHP 传递 HTTPS 标志（`fastcgi_param HTTPS $https`），使 PHP 能区分 HTTP/HTTPS 请求
-
-### 涉及文件
-
-| 文件 | 操作 |
-|------|------|
 | `web/src/etc/bootstrap.php` | 修改（session cookie 加固） |
 | `web/src/api/login.php` | 修改（强制 HTTPS） |
 | `web/src/api/register.php` | 修改（强制 HTTPS） |
-| `nginx/data/conf.d/l4d2.conf` | 修改（域名 301、IP 只读 + 登录 301） |
-| `nginx/data/conf.d/common.inc` | 修改（fastcgi 传 HTTPS 标志） |
-
-## 2026-08-29 — 收紧请求体上限 + nginx 文档同步
-
-- `client_max_body_size` 2048m → 8m，与 PHP `post_max_size`(8M) 对齐；web 无大文件上传，2GB 上限是纯 DoS 攻击面
-- `nginx/README.md` 同步路由图（sidecar/glances 改由 php 转发）、HTTP 行为说明、body 上限说明
-
-### 涉及文件
-
-| 文件 | 操作 |
-|------|------|
-| `nginx/data/conf.d/common.inc` | 修改（client_max_body_size 收紧到 8m） |
-| `nginx/README.md` | 修改（过时描述同步） |
-
-## 2026-08-29 — 内部 token 改走 header
-
-- `SIDECAR_TOKEN` 从 URL `?token=` 改为 `X-Auth-Token` header 传递，避免 token 落入 nginx access log 及各类日志
-- nginx fastcgi 显式透传 `HTTP_X_AUTH_TOKEN`（自定义 header 默认不透传）
-- 同步 test 脚本与文档
-
-### 涉及文件
-
-| 文件 | 操作 |
-|------|------|
-| `web/src/bin/task_daemon.php` | 修改（call_api 改 header + 去换行防注入） |
+| `web/src/bin/task_daemon.php` | 修改（call_api 改 header） |
 | `web/src/api/map_manage.php` | 修改（读 HTTP_X_AUTH_TOKEN） |
-| `nginx/data/conf.d/common.inc` | 修改（透传 X-Auth-Token） |
+| `nginx/data/conf.d/l4d2.conf` | 修改（301 / IP 只读 / limit_req_zone / map） |
+| `nginx/data/conf.d/common.inc` | 修改（透传 X-Auth-Token / HTTPS 标志 / body 8m / limit_req） |
+| `nginx/README.md` | 修改（过时描述同步） |
 | `test/script/healthcheck.sh` / `auto_api.sh` | 修改（curl 改 header） |
-| `web/docs/README.md` | 修改（认证说明同步） |
-
-## 2026-08-29 — 接口限流（IP 级防暴力破解）
-
-- nginx `limit_req` 基于客户端 IP 限流，弥补 PHP session 级 `rate_limit`「无 Cookie 可绕过」的缺陷
-- 用 `map` 将敏感端点映射到真实 IP、其余请求映射空 key（空 key 跳过限流），仅 3 个端点受限，不影响其他 API / 内网调用 / 静态资源
-- 阈值：`login.php` / `register.php` 5 r/m + burst 5；`check_email.php` 3 r/m + burst 3；超限返回 429
-
-### 涉及文件
-
-| 文件 | 操作 |
-|------|------|
-| `nginx/data/conf.d/l4d2.conf` | 修改（+limit_req_zone + map） |
-| `nginx/data/conf.d/common.inc` | 修改（location 加 limit_req + 429） |
+| `README.md` / `sidecar/README.md` / `web/docs/README.md` | 修改（架构图、路由表、认证说明） |
 
 ## 2026-07-15 — Bug 修复：COS 上传完整性检查缺失
 

@@ -10,8 +10,6 @@
 | [../task-daemon/README.md](../task-daemon/README.md) | 守护进程主循环、下载流程、COS 同步、每日维护 |
 | [../nginx/README.md](../nginx/README.md) | 路由分发、SSL、缓存策略 |
 | [../mysql/README.md](../mysql/README.md) | 数据库结构、迁移脚本 |
-| [2026-07-17-architecture-simplify.md](docs/2026-07-17-architecture-simplify.md) | 架构简化方案（2026-07-17 实施） |
-| [2026-07-16-architecture-discussion.md](docs/2026-07-16-architecture-discussion.md) | 架构讨论记录 |
 | [2026-08-29-backlog.md](docs/2026-08-29-backlog.md) | 待办评估（独立容器 / COS 签名直链 / 自动更新测试 / steamcmd 订阅） |
 
 ---
@@ -459,4 +457,4 @@ task-daemon 主循环中检测跨日自动刷新 `ini_set('error_log', ...)`。
 
 ## 11. 待办
 
-- **task-daemon 独立部署**：daemon 迁至 `./task-daemon/src/`，共享层（`lib/` + `tables/` + `etc/config.php`）提取到项目根目录，web 和 daemon 各自引用（见 [架构简化方案](docs/2026-07-17-architecture-simplify.md) 讨论）
+- **task-daemon 独立部署**：daemon 迁至 `./task-daemon/src/`，共享层（`lib/` + `tables/` + `etc/config.php`）提取到项目根目录，web 和 daemon 各自引用
