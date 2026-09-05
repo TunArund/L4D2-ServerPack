@@ -68,6 +68,16 @@ function escAttr(s) {
     return escHtml(s).replace(/"/g, '&quot;');
 }
 
+// 标题 HTML：地图仍存在（task.title 来自 LEFT JOIN maps）则包成跳转 map_info 的链接，
+// 否则（失败/已删除地图无法打开）仅显示纯文本
+function taskTitleHtml(task) {
+    const escaped = escHtml(taskTitle(task));
+    if (task.map_id && task.title) {
+        return `<a href="/map_info.php?id=${task.map_id}" class="text-decoration-none">${escaped}</a>`;
+    }
+    return escaped;
+}
+
 function progressCardHtml(task, speedText, etaText) {
     const totalBytes = taskTotalBytes(task);
     const title      = taskTitle(task);
@@ -80,7 +90,7 @@ function progressCardHtml(task, speedText, etaText) {
 
     return `
         <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${escHtml(title)}</span>
+            <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${taskTitleHtml(task)}</span>
             <small class="text-muted text-nowrap flex-shrink-0 ms-2">${escHtml(task.created_at)}</small>
         </div>
         <div class="d-flex justify-content-between small text-secondary mt-1">
@@ -132,7 +142,7 @@ function renderSimpleTasks(tasks, dom) {
         div.className = 'list-group-item';
         div.innerHTML = `
             <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${escHtml(title)}</span>
+                <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${taskTitleHtml(task)}</span>
                 <small class="text-secondary text-nowrap flex-shrink-0 ms-2">${formatBytes(taskTotalBytes(task))}</small>
             </div>
             <small class="text-muted">${escHtml(task.created_at)}</small>
