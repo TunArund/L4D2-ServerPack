@@ -18,7 +18,11 @@ cp .env.example .env            # 编辑 .env，填入必填变量（见下方�
 ./docker.sh build               # 构建镜像
 ./docker.sh up                  # 启动所有服务
 ```
-
+设置motd.txt与host.txt中的链接
+```bash
+ip=$(curl -4 ip.sb)
+sed -n 's/your_ip/'$ip'/p' ./l4d2/data/coop/*.txt
+```
 ### 更新部署
 
 改动源码或配置后，按改动位置选择生效方式：
