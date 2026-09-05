@@ -83,8 +83,6 @@ services:
     image: ${REGISTRY}l4d2-php:latest
     container_name: l4d2-php
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # monitor.php 转发到 host 网络下的 Glances
     environment:
       DB_HOST: mysql
       DB_DATABASE: ${DB_DATABASE}
@@ -185,12 +183,14 @@ services:
 
   # ============================================================
   # Glances 系统监控（API only，~50MB，极轻量）
+  # 跑在 compose 桥接网络，php 通过 http://glances:61208 访问；
+  # pid: host 保留宿主机进程指标。不再用 network_mode:host——
+  # 宿主机防火墙会拦容器到宿主机的流量，导致 php 访问 Glances 超时。
   # ============================================================
   glances:
     image: nicolargo/glances:latest
     container_name: l4d2-glances
     pid: host
-    network_mode: host
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

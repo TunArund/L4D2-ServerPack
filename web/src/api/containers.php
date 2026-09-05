@@ -12,6 +12,8 @@ if (!check_admin()) {
 if (!verify_csrf()) {
     json_error('CSRF 验证失败，请刷新页面重试。');
 }
+// 鉴权 + CSRF 校验完成后释放会话锁，避免 sidecar 慢请求阻塞同 session 的并发请求
+session_write_close();
 
 $action = $_GET['action'] ?? 'list';
 $token  = getenv('SIDECAR_TOKEN') ?: '';
