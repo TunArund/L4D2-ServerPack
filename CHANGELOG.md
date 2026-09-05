@@ -26,6 +26,29 @@
 | `web/src/static/js/custom/personal.js` | 修改（批量删除携带页码） |
 | `web/src/personal.php` | 修改（收件箱分页 / 内联详情 / 单条+全部删除） |
 
+## 2026-09-05 — dashboard 错误语义化 + 合并并发请求
+
+- `json_error` 增加语义化 HTTP 状态码（401/403/404/409/500/502），前端 `tools.js` 新增 `apiFetch` 统一读取 body 中的 message
+- dashboard 任务面板 8 个请求合并为 1（`tasks.php` 按 download/upload 分组返回），监控指标 4 请求合并为 1（Glances `/api/4/all`）
+- web/README.md 新增「容器网络使用建议」（容器间优先 compose 网络，避免 host 网络跨边界访问）
+
+## 2026-09-05 — 修复 dashboard 504（Glances 网络 + 会话锁）
+
+- Glances 由 `network_mode: host` 改为 compose 桥接网络，php 经 `http://glances:61208` 访问；原 `host.docker.internal`（host-gateway）解析到已 DOWN 的 docker0、宿主机 ufw 拦截容器→宿主机流量，导致 monitor.php 每次卡 3~10s、连锁拖垮同 session 的 tasks/containers 接口（nginx 504）
+- monitor.php / containers.php 鉴权后立即 `session_write_close()`，避免慢请求的会话锁串行阻塞同 session 并发请求
+
+### 升级操作
+
+- 重建 glances 与 php 容器使网络改动生效：`docker compose up -d glances php`
+
+## 2026-08-30 — 开发辅助脚本 + 下载文案 + 安全清理
+
+- 新增 `php-dev.sh` 开发辅助脚本（进入容器 shell / `lint` / `lint-all` / `serve` / `exec`），基于 `l4d2-base-php-cli` 镜像 + `docker-compose.dev.yml` dev profile，不随主 compose 启动
+- README 新增「开发辅助（php-dev.sh）」命令说明表
+- map_info 下载按钮文案由「COS 加速下载」改为「国内直链下载」
+- `.env.example` 去除真实身份信息（品牌域名/邮箱/公司/站点/备案/Steam 群组/SERVER_IP），改用占位符
+- `docker.sh clean` 构建缓存清理改为 `--max-used-space=5GB`，避免下次 build 全部重新下载
+
 ## 2026-08-30 — COS 登录签名直链 + 清理自定义域名与目录浏览页
 
 - 私有桶下公开 `cos_url` 直链失效（403），改为登录用户点击下载时经 `api/cos_link.php` 现签 COS V5 预签名 URL（新增 `cos_presign_url()`），短时效（默认 60s）近似「单次有效」
