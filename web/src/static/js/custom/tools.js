@@ -10,6 +10,22 @@ export function json_error(msg) {
         message: msg
     }
 }
+
+// 统一 API 请求封装：后端失败时返回非 200 + {success:false, message}。
+// 优先读 body 里的 message，读不到再兜底 status，避免丢失真实错误文案。
+export async function apiFetch(url, options = {}) {
+    const res = await fetch(url, options);
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 非 JSON 响应 */ }
+    if (data && data.success === false) {
+        throw new Error(data.message || `请求失败(${res.status})`);
+    }
+    if (!res.ok) {
+        throw new Error(`请求失败(${res.status})`);
+    }
+    return data;
+}
+
 export function formatFileSize(bytes) {
     if (!bytes || bytes < 0) return '0 B';
     const k = 1024;

@@ -458,3 +458,14 @@ task-daemon 主循环中检测跨日自动刷新 `ini_set('error_log', ...)`。
 ## 11. 待办
 
 - **task-daemon 独立部署**：daemon 迁至 `./task-daemon/src/`，共享层（`lib/` + `tables/` + `etc/config.php`）提取到项目根目录，web 和 daemon 各自引用
+
+## 12. 容器网络使用建议
+
+**原则：容器间通信优先使用 compose 桥接网络（服务名 DNS），避免 `network_mode: host` + 宿主机 IP 直连。**
+
+- **推荐做法**：服务挂在同一 compose 网络，直接用服务名访问，例如 `monitor.php` 访问 `http://glances:61208`。
+- **为什么避免 host 网络**：`network_mode: host` 会把服务绑到宿主机网络，迫使其它容器「跨越容器→宿主机边界」访问它，而这条路径很脆弱：
+  - `host.docker.internal`（`extra_hosts: host-gateway`）在 Linux 自定义网桥下会解析到 **docker0（172.17.0.1）而非真实网关**，且 docker0 可能处于 DOWN 状态；
+  - 宿主机防火墙（ufw / 云主机防火墙）通常拦截「容器→宿主机」流量，即便解析对了也可能被 DROP。
+- **历史事故**：Glances 曾用 `network_mode: host`，导致 dashboard 的 `monitor.php` 每次卡 3~10s，配合 PHP 会话锁连锁成全局 504（见 git 历史 `fix: dashboard 504`）。
+- **何时才用 host 网络**：确有需求读取宿主机全局网卡指标、且无法通过 `pid: host` + 卷挂载满足时。即便如此，也应为「容器访问宿主机」这条路径单独评估防火墙放行，而不是依赖 `host-gateway`。

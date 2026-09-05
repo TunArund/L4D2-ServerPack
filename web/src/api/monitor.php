@@ -8,13 +8,14 @@
 // ============================================================
 
 if (!check_login()) {
-    json_error('请先登录。');
+    json_error('请先登录。', 401);
 }
 // 鉴权完成后立即释放会话锁，避免 Glances 慢请求阻塞同 session 的并发请求
 session_write_close();
 
 // type 白名单 → Glances API v4 路径（硬编码映射，防任意端点/SSRF）
 $routes = [
+    'all'     => '/api/4/all',
     'cpu'     => '/api/4/cpu',
     'mem'     => '/api/4/mem',
     'fs'      => '/api/4/fs',
@@ -39,7 +40,7 @@ $err  = curl_error($ch);
 curl_close($ch);
 
 if ($body === false) {
-    json_error('监控服务不可用：' . $err);
+    json_error('监控服务不可用：' . $err, 502);
 }
 
 http_response_code($code);

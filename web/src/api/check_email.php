@@ -39,7 +39,7 @@ function updatedb($email, $vericode, $expire){
 
 include_once LIB_DIR . 'auth.php';
 if (!verify_csrf()) {
-	json_error('CSRF 验证失败，请刷新页面重试。');
+	json_error('CSRF 验证失败，请刷新页面重试。', 403);
 }
 // 频率限制：每 60 秒最多 1 次（防验证码轰炸）
 rate_limit(1, 60);
@@ -54,7 +54,7 @@ $expire = genexpire($last_time);
 //存数据库
 $result = updatedb($email, $vericode, $expire);
 if($result!=true){
-  json_error('数据库操作失败');
+  json_error('数据库操作失败', 500);
 }
 //发邮件
 include_once LIB_DIR . 'ses.php';
@@ -64,5 +64,5 @@ $success = isset($result['Response']['MessageId']);
 if($success){
     json_success(['message' => '验证码已发送，请检查邮箱！']);
 }else{
-    json_error('邮件发送失败：' . $result);
+    json_error('邮件发送失败：' . $result, 502);
 }

@@ -7,10 +7,10 @@
 // ============================================================
 
 if (!check_admin()) {
-    json_error('权限不足。');
+    json_error('权限不足。', 403);
 }
 if (!verify_csrf()) {
-    json_error('CSRF 验证失败，请刷新页面重试。');
+    json_error('CSRF 验证失败，请刷新页面重试。', 403);
 }
 // 鉴权 + CSRF 校验完成后释放会话锁，避免 sidecar 慢请求阻塞同 session 的并发请求
 session_write_close();
@@ -53,7 +53,7 @@ $err  = curl_error($ch);
 curl_close($ch);
 
 if ($body === false) {
-    json_error('服务管理不可用：' . $err);
+    json_error('服务管理不可用：' . $err, 502);
 }
 
 http_response_code($code);

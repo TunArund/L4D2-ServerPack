@@ -16,9 +16,9 @@ $api_token    = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
 $is_internal  = ($sidcar_token !== '' && hash_equals($sidcar_token, $api_token));
 
 if (!$is_internal) {
-    if (!check_login()) json_error('请先登录。');
-    if (!check_admin()) json_error('权限不足。');
-    if (!verify_csrf()) json_error('CSRF 验证失败，请刷新页面重试。');
+    if (!check_login()) json_error('请先登录。', 401);
+    if (!check_admin()) json_error('权限不足。', 403);
+    if (!verify_csrf()) json_error('CSRF 验证失败，请刷新页面重试。', 403);
 }
 //设置报错日志（按日轮转）
 ini_set('log_errors', 1);
@@ -33,12 +33,12 @@ switch($action){
     $order_by = get_GET('order_by', 0, 'id');
     $order    = get_GET('order', 0, 'DESC');
     $result   = list_maps(['limit' => $limit, 'offset' => $offset, 'order_by' => $order_by, 'order' => $order]);
-    if (!$result['success']) json_error($result['message']);
+    if (!$result['success']) json_error($result['message'], 500);
     json_success($result['data']);
   exit;
   case 'uninstall':
     $result = post_ids();
-    if (!$result['success']) json_error($result['message']);
+    if (!$result['success']) json_error($result['message'], 400);
     $msg = '';
     foreach ($result['data'] as $id) {
         $r = uninstall_map($id);
@@ -48,7 +48,7 @@ switch($action){
   exit;
   case 'delete':
     $result = post_ids();
-    if (!$result['success']) json_error($result['message']);
+    if (!$result['success']) json_error($result['message'], 400);
     $msg = '';
     foreach ($result['data'] as $id) {
         $r = delete_map_full($id);
@@ -58,28 +58,28 @@ switch($action){
   exit;
   case 'update':
     $result = post_ids();
-    if (!$result['success']) json_error('获取ids失败' . $result['message']);
+    if (!$result['success']) json_error('获取ids失败' . $result['message'], 400);
     $ids = $result['data'];
     $result = find_maps_for_update_by_ids($ids);
-    if (!$result['success']) json_error('查询数据库失败' . $result['message']);
+    if (!$result['success']) json_error('查询数据库失败' . $result['message'], 500);
     $rows = $result['data'];
     $summary = update_maps($rows);
     json_success($summary);
   exit;
   case 'update_all':
     $result = all_maps_except_updating();
-    if (!$result['success']) json_error('查询数据库失败' . $result['message']);
+    if (!$result['success']) json_error('查询数据库失败' . $result['message'], 500);
     $rows = $result['data'];
     $summary = update_maps($rows);
     json_success($summary);
   exit;
   case 'cos_sync':
     if (getenv('COS_SECRET_ID') === '' || getenv('COS_SECRET_KEY') === '' || getenv('COS_BUCKET') === '') {
-        json_error('COS 未配置，请检查 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量');
+        json_error('COS 未配置，请检查 COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET 环境变量', 500);
     }
     $trigger_file = LOG_DIR . '.cos_sync';
     if (@file_put_contents($trigger_file, date('c')) === false) {
-        json_error('无法写入触发文件，请检查 LOG_DIR 权限');
+        json_error('无法写入触发文件，请检查 LOG_DIR 权限', 500);
     }
     json_success([
       'message' => '已加入同步队列，daemon 将在下次轮询时执行（最长等待 ' . ($_ENV['DAEMON_INTERVAL'] ?? 5) . ' 秒）',

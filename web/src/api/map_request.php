@@ -125,7 +125,7 @@ function approve_request(int $request_id): array
 }
 
 //检查登录
-if (!check_login()) json_error('请先登录。');
+if (!check_login()) json_error('请先登录。', 401);
 //设置报错日志（按日轮转）
 ini_set('log_errors', 1);
 ini_set('error_log', daily_log_path(LOG_DIR . 'map_request_error.log'));
@@ -137,7 +137,7 @@ $is_admin = check_admin();
 
 // CSRF：仅 POST 写入操作需要验证（GET 只读操作自动跳过）
 if (!verify_csrf()) {
-	json_error('CSRF 验证失败，请刷新页面重试。');
+	json_error('CSRF 验证失败，请刷新页面重试。', 403);
 }
 
 switch ($action) {
@@ -152,7 +152,7 @@ switch ($action) {
 		$request_id = get_GET('request_id', 1, null);
 		if (!$request_id) json_error('非法request_id');
 		$result = delete_request_handler($is_admin, $user_id, $request_id);
-		if (!$result['success']) json_error($result['message']);
+		if (!$result['success']) json_error($result['message'], 500);
 		json_success($result['data']);
 		exit;
 	case 'list':
@@ -165,18 +165,18 @@ switch ($action) {
 		} else {
 			$result = list_requests_by_user($user_id, ['limit' => $limit, 'offset' => $offset, 'order_by' => $order_by, 'order' => $order]);
 		}
-		if (!$result['success']) json_error($result['message']);
+		if (!$result['success']) json_error($result['message'], 500);
 		json_success($result['data']);
 		exit;
 	case 'count':
 		$result = count_requests();
-		if (!$result['success']) json_error($result['message']);
+		if (!$result['success']) json_error($result['message'], 500);
 		json_success($result['data']);
 		exit;
 	case 'approve':
-		if (!$is_admin) json_error('权限不足');
+		if (!$is_admin) json_error('权限不足', 403);
 		$result = post_ids();
-		if (!$result['success']) json_error($result['message']);
+		if (!$result['success']) json_error($result['message'], 400);
 		$success = 0; $fail = 0; $msg = '';
 		foreach ($result['data'] as $request_id) {
 			$r = approve_request(intval($request_id));

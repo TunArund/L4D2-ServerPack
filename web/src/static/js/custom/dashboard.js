@@ -1,7 +1,7 @@
-import { formatBytes, formatBits, escHtml } from './tools.js';
+import { formatBytes, formatBits, escHtml, apiFetch } from './tools.js';
 
 // ================================================================
-// COS 上传任务面板（与下载任务结构一致）
+// 下载 / COS 上传任务面板（合并为单次请求，减少并发）
 // ================================================================
 
 const cosUploadPanels = {
@@ -11,139 +11,29 @@ const cosUploadPanels = {
     fail:        { dom: document.querySelector('#cos-upload-fail'),        count: 10, step: 10, max: 100 },
 };
 
-async function getCosTasks(status, count) {
-    return getTasks(status, count, 'upload');
-}
-
-async function updateCosUploadPanel() {
-    const updateEl = document.getElementById('cos-upload-update');
-    if (!updateEl) return;
-    updateEl.textContent = '最后更新: ' + new Date().toLocaleTimeString();
-
-    for (const [status, panel] of Object.entries(cosUploadPanels)) {
-        try {
-            const tasks = await getCosTasks(status, panel.count);
-            const dom = panel.dom;
-            dom.innerHTML = '';
-            if (status === 'uploading') {
-                tasks.forEach(task => {
-                    let speedText = '计算中...', etaText = '--';
-                    const now = Date.now();
-                    if (lastCosTaskStats[task.id]) {
-                        const last = lastCosTaskStats[task.id];
-                        const timeDiff = (now - last.time) / 1000;
-                        if (timeDiff > 0) {
-                            const bytesDiff = task.processed_bytes - last.processed;
-                            const speed = bytesDiff / timeDiff;
-                            speedText = formatBytes(speed) + '/s';
-                            etaText = formatEta(task.total_bytes - task.processed_bytes, speed);
-                        }
-                    }
-                    lastCosTaskStats[task.id] = { processed: task.processed_bytes, time: now };
-                    const div = document.createElement('div');
-                    div.className = 'list-group-item';
-                    div.innerHTML = progressCardHtml(task, speedText, etaText);
-                    dom.appendChild(div);
-                });
-            } else {
-                tasks.forEach(task => {
-                    const div = document.createElement('div');
-                    div.className = 'list-group-item';
-                    div.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
-                            <small class="text-muted ms-2">${escHtml(task.created_at)}</small>
-                        </div>
-                        <small class="text-secondary">${formatBytes(task.total_bytes)}</small>
-                    `;
-                    dom.appendChild(div);
-                });
-            }
-            // 查看更多按钮
-            const btn = document.createElement('a');
-            btn.textContent = '查看更多';
-            btn.href = 'javascript:void(0)';
-            btn.className = 'btn btn-link btn-sm d-block mt-1';
-            btn.addEventListener('click', () => {
-                if (panel.count >= panel.max) {
-                    alert('已达到最大显示数量' + panel.max);
-                    return;
-                }
-                panel.count += panel.step;
-                updateCosUploadPanel();
-            });
-            dom.appendChild(btn);
-        } catch (e) {
-            console.error('获取 COS 上传任务失败:', e);
-        }
-    }
-}
-
-updateCosUploadPanel();
-setInterval(updateCosUploadPanel, 5000);
-
-// 下载任务面板配置
 const downloadPanels = {
-    downloading: {
-        dom: document.querySelector('#download-downloading'),
-        count: 10,
-        step: 10,
-        max: 100
-    },
-    waiting: {
-        dom: document.querySelector('#download-waiting'),
-        count: 10,
-        step: 10,
-        max: 100
-    },
-    success: {
-        dom: document.querySelector('#download-success'),
-        count: 10,
-        step: 10,
-        max: 100
-    },
-    fail: {
-        dom: document.querySelector('#download-fail'),
-        count: 10,
-        step: 10,
-        max: 100
-    }
+    waiting:     { dom: document.querySelector('#download-waiting'),     count: 10, step: 10, max: 100 },
+    downloading: { dom: document.querySelector('#download-downloading'), count: 10, step: 10, max: 100 },
+    success:     { dom: document.querySelector('#download-success'),     count: 10, step: 10, max: 100 },
+    fail:        { dom: document.querySelector('#download-fail'),        count: 10, step: 10, max: 100 },
 };
-
-// 获取下载任务
-async function getTasks(stat, cnt, type = 'download') {
-    try {
-        const response = await fetch('/api/tasks.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: stat, count: cnt, type })
-        });
-        if (!response.ok) throw new Error(`获取下载任务失败,响应码: ${response.status}`);
-        const result = await response.json();
-        if (!result.success === true) throw new Error(`获取下载任务失败${result.message}`);
-        return result.data;
-    } catch (error) {
-        console.error('获取下载任务失败:', error);
-        throw error;
-    }
-}
-
-async function updateDownloadPanel() {
-    const update = document.querySelector('#download-update');
-    update.textContent = `最后更新: ${new Date().toLocaleString()}`;
-    for (const [status, panel] of Object.entries(downloadPanels)) {
-        const tasks = await getTasks(status, panel.count);
-        if (status === 'downloading') {
-            refreshProgressPanel(tasks, panel.dom);
-        } else {
-            refreshNonProgressPanel(tasks, panel.dom, status);
-        }
-    }
-}
 
 // 记录上一次任务数据用于计算速度
 let lastTaskStats = {};
 let lastCosTaskStats = {};
+
+// 缓存最近一次拉取的分组数据，「查看更多」时无需重新请求
+let lastGrouped = null;
+
+// 一次拉取 download / upload 两类型、各状态分组（后端 tasks.php 已合并返回）
+async function fetchTasks() {
+    const res = await apiFetch('/api/tasks.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 100 }),   // 上限 100，前端按面板 count 切片
+    });
+    return res.data || {};
+}
 
 // 格式化预计剩余时间
 function formatEta(remainingBytes, speedBytesPerSec) {
@@ -192,13 +82,14 @@ function progressCardHtml(task, speedText, etaText) {
         </div>`;
 }
 
-function refreshProgressPanel(tasks, dom) {
+// 渲染进度态（downloading / uploading）：带进度条与速度
+function renderProgressTasks(tasks, dom, stats) {
     dom.innerHTML = '';
     tasks.forEach(task => {
         let speedText = '计算中...', etaText = '--';
         const now = Date.now();
-        if (lastTaskStats[task.id]) {
-            const last = lastTaskStats[task.id];
+        if (stats[task.id]) {
+            const last = stats[task.id];
             const timeDiff = (now - last.time) / 1000;
             if (timeDiff > 0) {
                 const bytesDiff = task.processed_bytes - last.processed;
@@ -207,49 +98,91 @@ function refreshProgressPanel(tasks, dom) {
                 etaText = formatEta(task.total_bytes - task.processed_bytes, speed);
             }
         }
-        lastTaskStats[task.id] = { processed: task.processed_bytes, time: now };
+        stats[task.id] = { processed: task.processed_bytes, time: now };
         const div = document.createElement('div');
         div.className = 'list-group-item';
         div.innerHTML = progressCardHtml(task, speedText, etaText);
         dom.appendChild(div);
     });
-    dom.appendChild(getViewMoreButton('downloading'));
 }
 
-function refreshNonProgressPanel(tasks, dom, status) {
+// 渲染非进度态：简单卡片
+function renderSimpleTasks(tasks, dom, showSize) {
     dom.innerHTML = '';
     tasks.forEach(task => {
         const div = document.createElement('div');
         div.className = 'list-group-item';
         div.innerHTML = `
             <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-bold text-break">${escHtml(task.disk_safe)}</span>
+                <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
                 <small class="text-muted ms-2">${escHtml(task.created_at)}</small>
             </div>
+            ${showSize ? `<small class="text-secondary">${formatBytes(task.total_bytes)}</small>` : ''}
         `;
         dom.appendChild(div);
     });
-    dom.appendChild(getViewMoreButton(status));
 }
 
-function getViewMoreButton(status) {
+// 「查看更多」：只加大本地 count 并用缓存数据重渲染，不重新请求
+function getViewMoreButton(panels, status) {
     const button = document.createElement('a');
     button.textContent = '查看更多';
     button.href = 'javascript:void(0)';
     button.className = 'btn btn-link btn-sm d-block mt-1';
-    button.addEventListener('click', function() {
-        if (downloadPanels[status].count >= downloadPanels[status].max) {
-            alert(`已达到最大显示数量${downloadPanels[status].max}，无法显示更多任务。`);
+    button.addEventListener('click', () => {
+        const panel = panels[status];
+        if (panel.count >= panel.max) {
+            alert(`已达到最大显示数量${panel.max}，无法显示更多任务。`);
+            return;
         }
-        downloadPanels[status].count += downloadPanels[status].step;
-        updateDownloadPanel();
+        panel.count += panel.step;
+        renderAllPanels(lastGrouped);
     });
     return button;
 }
 
-// 初始加载 + 定时刷新
-updateDownloadPanel();
-setInterval(updateDownloadPanel, 5000);
+// 用一次性拉取的分组数据渲染所有任务面板
+function renderAllPanels(grouped) {
+    if (!grouped) return;
+    lastGrouped = grouped;
+
+    for (const [status, panel] of Object.entries(downloadPanels)) {
+        const tasks = ((grouped.download || {})[status] || []).slice(0, panel.count);
+        if (status === 'downloading') {
+            renderProgressTasks(tasks, panel.dom, lastTaskStats);
+        } else {
+            renderSimpleTasks(tasks, panel.dom, false);
+        }
+        panel.dom.appendChild(getViewMoreButton(downloadPanels, status));
+    }
+
+    for (const [status, panel] of Object.entries(cosUploadPanels)) {
+        const tasks = ((grouped.upload || {})[status] || []).slice(0, panel.count);
+        if (status === 'uploading') {
+            renderProgressTasks(tasks, panel.dom, lastCosTaskStats);
+        } else {
+            renderSimpleTasks(tasks, panel.dom, true);
+        }
+        panel.dom.appendChild(getViewMoreButton(cosUploadPanels, status));
+    }
+}
+
+async function refreshTasks() {
+    const uploadEl = document.getElementById('cos-upload-update');
+    if (uploadEl) uploadEl.textContent = '最后更新: ' + new Date().toLocaleTimeString();
+    const dlEl = document.getElementById('download-update');
+    if (dlEl) dlEl.textContent = '最后更新: ' + new Date().toLocaleString();
+
+    try {
+        const grouped = await fetchTasks();
+        renderAllPanels(grouped);
+    } catch (e) {
+        console.error('获取任务失败:', e);
+    }
+}
+
+refreshTasks();
+setInterval(refreshTasks, 5000);
 
 // ================================================================
 // 系统资源监控（Glances API + Chart.js 折线图）
@@ -410,39 +343,30 @@ function updateNetChart(download, upload) {
 async function updateMetrics() {
     try {
         pushLabel();
-        const [cpuRes, memRes, fsRes, netRes] = await Promise.all([
-            fetch('/api/monitor.php?type=cpu'),
-            fetch('/api/monitor.php?type=mem'),
-            fetch('/api/monitor.php?type=fs'),
-            fetch('/api/monitor.php?type=network'),
-        ]);
-
-        if (!cpuRes.ok || !memRes.ok) throw new Error('API error');
+        const all = await apiFetch('/api/monitor.php?type=all');
 
         // ---- CPU ----
-        const cpuData = await cpuRes.json();
-        const cpuPct = cpuData.total;
+        const cpuPct = all.cpu.total;
 
         updateLineChart(chartCPU, cpuPct);
         document.querySelector('#val-cpu').textContent = cpuPct.toFixed(1) + '%';
         document.querySelector('#detail-cpu').textContent =
-            (cpuData.cpucore ? cpuData.cpucore + '核' : '');
+            (all.cpu.cpucore ? all.cpu.cpucore + '核' : '');
 
         // ---- 内存 ----
-        const memData = await memRes.json();
-        const memPct = memData.percent;
-        const memUsedGB  = ((memData.used  || 0) / 1024 / 1024 / 1024).toFixed(1);
-        const memTotalGB = ((memData.total || 0) / 1024 / 1024 / 1024).toFixed(1);
+        const memPct = all.mem.percent;
+        const memUsedGB  = ((all.mem.used  || 0) / 1024 / 1024 / 1024).toFixed(1);
+        const memTotalGB = ((all.mem.total || 0) / 1024 / 1024 / 1024).toFixed(1);
 
         updateLineChart(chartRAM, memPct);
         document.querySelector('#val-ram').textContent = memPct.toFixed(1) + '%';
         document.querySelector('#detail-ram').textContent = memUsedGB + ' / ' + memTotalGB + ' GB';
 
         // ---- 磁盘 ----
-        const fsList = await fsRes.json();
+        const fsList = all.fs || [];
         let diskPct = 0, diskUsed = '--', diskTotal = '--';
         if (Array.isArray(fsList) && fsList.length) {
-            const root = fsList.find(f => ['/', '/rootfs'].includes(f.mount_point))
+            const root = fsList.find(f => ['/', '/rootfs'].includes(f.mnt_point))
                       || fsList.reduce((a, b) => (a.percent || 0) > (b.percent || 0) ? a : b);
             diskPct   = root.percent || 0;
             diskUsed  = formatBytes(root.used  || 0);
@@ -454,7 +378,7 @@ async function updateMetrics() {
         document.querySelector('#detail-disk').textContent = diskUsed + ' / ' + diskTotal;
 
         // ---- 网络 ----
-        const netList = await netRes.json();
+        const netList = all.network || [];
         let rx = 0, tx = 0;
         if (Array.isArray(netList)) {
             // Glances v4 字段：bytes_recv_rate_per_sec / bytes_sent_rate_per_sec（bytes/s）
@@ -500,8 +424,7 @@ setInterval(updateMetrics, INTERVAL);
 
     async function refreshLog(name, body, tail) {
         try {
-            const res = await fetch('/api/containers.php?action=logs&name=' + encodeURIComponent(name) + '&tail=' + tail);
-            const data = await res.json();
+            const data = await apiFetch('/api/containers.php?action=logs&name=' + encodeURIComponent(name) + '&tail=' + tail);
             const newText = data.logs || '(空)';
 
             if (body.textContent === newText) return;  // 内容未变，跳过 DOM 更新
@@ -564,9 +487,7 @@ setInterval(updateMetrics, INTERVAL);
 
     async function updateContainers() {
         try {
-            const res = await fetch('/api/containers.php?action=list');
-            if (!res.ok) throw new Error('API error ' + res.status);
-            const data = await res.json();
+            const data = await apiFetch('/api/containers.php?action=list');
             const viewable    = new Set(data.viewable    || []);
             const restartable = new Set(data.restartable || []);
             const containers  = (data.containers || []).filter(c => viewable.has(c.name));
@@ -623,9 +544,8 @@ setInterval(updateMetrics, INTERVAL);
         btn.disabled = true;
         btn.textContent = '…';
         try {
-            const res = await fetch('/api/containers.php?action=restart&name=' + encodeURIComponent(name), { method: 'POST' });
-            const data = await res.json();
-            alert(res.ok ? ('✅ ' + name + ' 已重启') : ('❌ ' + (data.error || '未知错误')));
+            await apiFetch('/api/containers.php?action=restart&name=' + encodeURIComponent(name), { method: 'POST' });
+            alert('✅ ' + name + ' 已重启');
         } catch (e) {
             alert('请求失败: ' + e.message);
         }

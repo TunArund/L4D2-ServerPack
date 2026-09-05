@@ -17,6 +17,26 @@ function query_tasks(string $type, string $status, int $limit = 10): array
     );
 }
 
+// 一次返回 download / upload 两类型、各状态分组（dashboard 单请求合并用）
+function query_tasks_grouped(int $limit = 100): array
+{
+    $limit = max(1, min($limit, 100));
+    $groups = [
+        'download' => ['waiting', 'downloading', 'success', 'fail'],
+        'upload'   => ['waiting', 'uploading', 'success', 'fail'],
+    ];
+    $out = [];
+    foreach ($groups as $type => $statuses) {
+        $out[$type] = [];
+        foreach ($statuses as $status) {
+            $r = query_tasks($type, $status, $limit);
+            if (!$r['success']) return $r;
+            $out[$type][$status] = $r['data'];
+        }
+    }
+    return array_success($out);
+}
+
 function find_task_by_id(int $id): array
 {
     return db_fetch_one(

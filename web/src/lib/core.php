@@ -66,7 +66,10 @@ function get_POST($key, $type = 0, $default = null) {
   return $val;
 }
 
-function json_error($msg){
+function json_error($msg, int $code = 400){
+    // 状态码语义：400 参数错误 / 401 未登录 / 403 无权限或 CSRF /
+    //             404 不存在 / 409 状态冲突 / 500 服务器或数据库 / 502 上游服务不可用
+    http_response_code($code);
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => $msg]);
     exit;
@@ -84,7 +87,7 @@ function json_from(array $result): void {
     if ($result['success'] ?? false) {
         json_success($result['data'] ?? []);
     } else {
-        json_error($result['message'] ?? '未知错误');
+        json_error($result['message'] ?? '未知错误', 500);
     }
 }
 function array_error($msg){
