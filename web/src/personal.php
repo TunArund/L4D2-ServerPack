@@ -21,7 +21,8 @@ if ($message_id && $tab === 'inbox') {
 if ($tab === 'inbox' && isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
     delete_message($delete_id, $user_id);
-    header('Location: /personal.php?tab=inbox');
+    $page = max(1, intval($_GET['page'] ?? 1));
+    header("Location: /personal.php?tab=inbox&page={$page}");
     exit;
 }
 
@@ -34,6 +35,13 @@ if ($tab === 'inbox' && isset($_GET['mark_all_read'])) {
 if ($tab === 'inbox' && !empty($_GET['delete_ids'])) {
     $ids = array_map('intval', (array)$_GET['delete_ids']);
     delete_messages($ids, $user_id);
+    $page = max(1, intval($_GET['page'] ?? 1));
+    header("Location: /personal.php?tab=inbox&page={$page}");
+    exit;
+}
+
+if ($tab === 'inbox' && isset($_GET['delete_all'])) {
+    delete_all_messages($user_id);
     header('Location: /personal.php?tab=inbox');
     exit;
 }
@@ -101,9 +109,49 @@ function printProfile($pdo, $user_id, $isAdmin)
     echo $profile;
 }
 
+function printPagination(int $page, int $total_pages): void
+{
+    if ($total_pages <= 1) return;
+    $url = fn($p) => "?tab=inbox&page={$p}";
+
+    echo '<nav aria-label="收件箱分页"><ul class="pagination pagination-sm justify-content-center mb-2">';
+
+    $prev = $page > 1 ? $page - 1 : null;
+    echo '<li class="page-item' . ($prev ? '' : ' disabled') . '"><a class="page-link" href="' . ($prev ? $url($prev) : '#') . '">«</a></li>';
+
+    $start = max(1, $page - 2);
+    $end   = min($total_pages, $page + 2);
+    if ($start > 1) {
+        echo '<li class="page-item"><a class="page-link" href="' . $url(1) . '">1</a></li>';
+        if ($start > 2) echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+    }
+    for ($i = $start; $i <= $end; $i++) {
+        $active = $i === $page ? ' active' : '';
+        echo '<li class="page-item' . $active . '"><a class="page-link" href="' . $url($i) . '">' . $i . '</a></li>';
+    }
+    if ($end < $total_pages) {
+        if ($end < $total_pages - 1) echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        echo '<li class="page-item"><a class="page-link" href="' . $url($total_pages) . '">' . $total_pages . '</a></li>';
+    }
+
+    $next = $page < $total_pages ? $page + 1 : null;
+    echo '<li class="page-item' . ($next ? '' : ' disabled') . '"><a class="page-link" href="' . ($next ? $url($next) : '#') . '">»</a></li>';
+
+    echo '</ul></nav>';
+}
+
 function printInbox($pdo, $user_id)
 {
-    $result = list_messages_by_user($user_id);
+    $page_size = 20;
+    $page = max(1, intval($_GET['page'] ?? 1));
+
+    $count_result = count_messages_by_user($user_id);
+    $total = $count_result['success'] ? (int)$count_result['data'] : 0;
+    $total_pages = max(1, (int)ceil($total / $page_size));
+    if ($page > $total_pages) $page = $total_pages;
+    $offset = ($page - 1) * $page_size;
+
+    $result = list_messages_by_user_paged($user_id, $page_size, $offset);
     $msgs = $result['success'] ? $result['data'] : [];
 
     if (!$msgs) {
@@ -116,7 +164,8 @@ function printInbox($pdo, $user_id)
         return;
     }
 
-    $unread = count(array_filter($msgs, fn($m) => !$m['is_read']));
+    $unread_result = count_unread_messages($user_id);
+    $unread = $unread_result['success'] ? (int)$unread_result['data'] : 0;
 
     $items = '';
     foreach ($msgs as $msg) {
@@ -129,17 +178,14 @@ function printInbox($pdo, $user_id)
 
         $items .= <<<ITEM
         <div class="list-group-item py-2 px-3">
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
                 <input type="checkbox" name="delete_ids[]" value="{$id}" class="form-check-input inbox-check flex-shrink-0">
-                <button class="btn btn-link text-start text-decoration-none p-0 {$bold} flex-grow-1"
-                        data-bs-toggle="collapse" data-bs-target="#msg-{$id}"
-                        aria-expanded="false" onclick="markRead({$id}, this)">
-                    {$t}{$badge}
-                </button>
-                <small class="text-muted text-end flex-shrink-0">{$time}</small>
-            </div>
-            <div class="collapse mt-2" id="msg-{$id}">
-                <div class="bg-light rounded p-2 small border-start border-3 border-primary">{$body}</div>
+                <button class="btn btn-link text-start text-decoration-none p-0 {$bold} flex-shrink-0"
+                        onclick="markRead({$id}, this)">{$t}{$badge}</button>
+                <span class="text-secondary small text-break flex-grow-1">{$body}</span>
+                <small class="text-muted text-nowrap flex-shrink-0">{$time}</small>
+                <a href="?tab=inbox&delete_id={$id}&page={$page}" class="btn btn-outline-danger btn-sm flex-shrink-0"
+                   onclick="return confirm('确定删除这条消息？')" title="删除"><i class="bi bi-trash"></i></a>
             </div>
         </div>
         ITEM;
@@ -152,6 +198,7 @@ function printInbox($pdo, $user_id)
             <div class="d-flex gap-2">
                 <a href="?tab=inbox&mark_all_read=1" class="btn btn-outline-secondary btn-sm">全部标为已读</a>
                 <button type="button" class="btn btn-outline-danger btn-sm" onclick="batchDelete()">删除选中</button>
+                <a href="?tab=inbox&delete_all=1" class="btn btn-outline-danger btn-sm" onclick="return confirm('确定删除全部消息？此操作不可恢复。')">全部删除</a>
             </div>
         </div>
         <div class="card-body p-0">
@@ -159,6 +206,8 @@ function printInbox($pdo, $user_id)
         </div>
     </div>
     HTML;
+
+    printPagination($page, $total_pages);
 }
 
 function printMapRequest($isAdmin)

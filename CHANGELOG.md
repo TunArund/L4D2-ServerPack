@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 2026-09-05 — 监控中心任务面板与收件箱体验改进
+
+### 监控中心任务面板（dashboard）
+
+- 下载 / COS 上传任务卡片补全标题：任务查询 `LEFT JOIN maps` 取地图 `title` 与 `size`（等待阶段 `total_bytes` 为 0 时回退地图 size）
+- 下载任务非进度态（等待/成功/失败）不再只显示 steamid，改为显示地图标题 + 大小
+- 标题过长单行截断（`text-truncate` + `min-width:0`），不再换行挤开时间；悬浮 `title` 属性显示完整标题
+- 简单卡片（等待/成功/失败）将「大小」与「时间」互换位置：大小字段更短，给标题留出更多空间，时间移至第二行
+
+### 收件箱（personal.php?tab=inbox）
+
+- 新增分页（每页 20 条，`created_at DESC, id DESC` 稳定排序），新增 `count_messages_by_user` / `list_messages_by_user_paged`
+- 消息详情（地图名）直接内联展示，不再折叠隐藏
+- 新增单条「删除」按钮与「全部删除」按钮（新增 `delete_all_messages`）
+- 单条 / 批量删除后保留当前页码，不再跳回第 1 页
+
+### 涉及文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/src/tables/tasks.php` | 修改（`query_tasks` LEFT JOIN maps 返回 title/size） |
+| `web/src/tables/messages.php` | 修改（+`count_messages_by_user` / `list_messages_by_user_paged` / `delete_all_messages`） |
+| `web/src/static/js/custom/dashboard.js` | 修改（标题/大小展示、截断 + 悬浮 title、大小时间换位） |
+| `web/src/static/js/custom/personal.js` | 修改（批量删除携带页码） |
+| `web/src/personal.php` | 修改（收件箱分页 / 内联详情 / 单条+全部删除） |
+
 ## 2026-08-30 — COS 登录签名直链 + 清理自定义域名与目录浏览页
 
 - 私有桶下公开 `cos_url` 直链失效（403），改为登录用户点击下载时经 `api/cos_link.php` 现签 COS V5 预签名 URL（新增 `cos_presign_url()`），短时效（默认 60s）近似「单次有效」

@@ -7,11 +7,13 @@ function query_tasks(string $type, string $status, int $limit = 10): array
 {
     $limit = max(1, min($limit, 100));
     return db_fetch_all(
-        'SELECT id, type, map_id, src, dst, disk_safe, status,
-                processed_bytes, total_bytes, created_at, updated_at
-         FROM tasks
-         WHERE type = ? AND status = ?
-         ORDER BY id DESC
+        'SELECT t.id, t.type, t.map_id, t.src, t.dst, t.disk_safe, t.status,
+                t.processed_bytes, t.total_bytes, t.created_at, t.updated_at,
+                m.title, m.size AS map_size
+         FROM tasks t
+         LEFT JOIN maps m ON m.id = t.map_id
+         WHERE t.type = ? AND t.status = ?
+         ORDER BY t.id DESC
          LIMIT ' . $limit,
         [$type, $status]
     );

@@ -53,18 +53,35 @@ function formatElapsed(createdAt) {
     return Math.floor(elapsed / 3600) + '时' + Math.floor((elapsed % 3600) / 60) + '分';
 }
 
+// 任务标题：优先地图 title，回退到 disk_safe（steamid）/ src
+function taskTitle(task) {
+    return task.title || task.disk_safe || task.src || '(无标题)';
+}
+
+// 任务大小：下载任务 waiting 阶段 total_bytes 可能为 0，回退到地图 size
+function taskTotalBytes(task) {
+    return (task.total_bytes > 0) ? task.total_bytes : (task.map_size || 0);
+}
+
+// HTML 属性转义：escHtml 不转义双引号，title 属性需额外处理
+function escAttr(s) {
+    return escHtml(s).replace(/"/g, '&quot;');
+}
+
 function progressCardHtml(task, speedText, etaText) {
-    const progress = task.total_bytes > 0 ? Math.floor((task.processed_bytes / task.total_bytes) * 100) : 0;
+    const totalBytes = taskTotalBytes(task);
+    const title      = taskTitle(task);
+    const progress = totalBytes > 0 ? Math.floor((task.processed_bytes / totalBytes) * 100) : 0;
     const processed = formatBytes(task.processed_bytes);
-    const total     = formatBytes(task.total_bytes);
-    const remaining = formatBytes(task.total_bytes - task.processed_bytes);
+    const total     = formatBytes(totalBytes);
+    const remaining = formatBytes(Math.max(0, totalBytes - task.processed_bytes));
     const elapsed   = formatElapsed(task.created_at);
     const barCls    = task.type === 'upload' ? 'bg-info' : 'bg-success';
 
     return `
         <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
-            <small class="text-muted text-nowrap ms-2">${escHtml(task.created_at)}</small>
+            <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${escHtml(title)}</span>
+            <small class="text-muted text-nowrap flex-shrink-0 ms-2">${escHtml(task.created_at)}</small>
         </div>
         <div class="d-flex justify-content-between small text-secondary mt-1">
             <span>${processed}</span>
@@ -95,7 +112,7 @@ function renderProgressTasks(tasks, dom, stats) {
                 const bytesDiff = task.processed_bytes - last.processed;
                 const speed = bytesDiff / timeDiff;
                 speedText = formatBytes(speed) + '/s';
-                etaText = formatEta(task.total_bytes - task.processed_bytes, speed);
+                etaText = formatEta(taskTotalBytes(task) - task.processed_bytes, speed);
             }
         }
         stats[task.id] = { processed: task.processed_bytes, time: now };
@@ -106,18 +123,19 @@ function renderProgressTasks(tasks, dom, stats) {
     });
 }
 
-// 渲染非进度态：简单卡片
-function renderSimpleTasks(tasks, dom, showSize) {
+// 渲染非进度态：简单卡片（标题 + 大小）
+function renderSimpleTasks(tasks, dom) {
     dom.innerHTML = '';
     tasks.forEach(task => {
+        const title = taskTitle(task);
         const div = document.createElement('div');
         div.className = 'list-group-item';
         div.innerHTML = `
             <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-bold text-break small">${escHtml(task.disk_safe)}</span>
-                <small class="text-muted ms-2">${escHtml(task.created_at)}</small>
+                <span class="fw-bold text-truncate small" style="min-width:0" title="${escAttr(title)}">${escHtml(title)}</span>
+                <small class="text-secondary text-nowrap flex-shrink-0 ms-2">${formatBytes(taskTotalBytes(task))}</small>
             </div>
-            ${showSize ? `<small class="text-secondary">${formatBytes(task.total_bytes)}</small>` : ''}
+            <small class="text-muted">${escHtml(task.created_at)}</small>
         `;
         dom.appendChild(div);
     });
@@ -151,7 +169,7 @@ function renderAllPanels(grouped) {
         if (status === 'downloading') {
             renderProgressTasks(tasks, panel.dom, lastTaskStats);
         } else {
-            renderSimpleTasks(tasks, panel.dom, false);
+            renderSimpleTasks(tasks, panel.dom);
         }
         panel.dom.appendChild(getViewMoreButton(downloadPanels, status));
     }
@@ -161,7 +179,7 @@ function renderAllPanels(grouped) {
         if (status === 'uploading') {
             renderProgressTasks(tasks, panel.dom, lastCosTaskStats);
         } else {
-            renderSimpleTasks(tasks, panel.dom, true);
+            renderSimpleTasks(tasks, panel.dom);
         }
         panel.dom.appendChild(getViewMoreButton(cosUploadPanels, status));
     }

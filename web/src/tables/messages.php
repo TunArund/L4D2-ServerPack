@@ -19,6 +19,24 @@ function list_messages_by_user(int $user_id): array
     );
 }
 
+function count_messages_by_user(int $user_id): array
+{
+    return db_fetch_column(
+        'SELECT COUNT(*) FROM messages WHERE user_id = ?',
+        [$user_id]
+    );
+}
+
+function list_messages_by_user_paged(int $user_id, int $limit = 20, int $offset = 0): array
+{
+    $limit  = max(1, min($limit, 100));
+    $offset = max(0, $offset);
+    return db_fetch_all(
+        'SELECT id, title, message, is_read, created_at FROM messages WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+        [$user_id]
+    );
+}
+
 function count_unread_messages(int $user_id): array
 {
     return db_fetch_column(
@@ -87,4 +105,9 @@ function delete_messages(array $ids, int $user_id): array
         "DELETE FROM messages WHERE id IN ({$placeholders}) AND user_id = ?",
         [...$ids, $user_id]
     );
+}
+
+function delete_all_messages(int $user_id): array
+{
+    return db_execute_write('DELETE FROM messages WHERE user_id = ?', [$user_id]);
 }

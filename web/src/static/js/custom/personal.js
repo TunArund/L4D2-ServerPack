@@ -15,5 +15,7 @@ function batchDelete() {
     const p = new URLSearchParams();
     p.set('tab', 'inbox');
     cbs.forEach(c => p.append('delete_ids[]', c.value));
+    const page = new URLSearchParams(location.search).get('page');
+    if (page) p.set('page', page);
     location.href = '/personal.php?' + p.toString();
 }
