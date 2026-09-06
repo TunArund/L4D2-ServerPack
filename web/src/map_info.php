@@ -216,13 +216,13 @@ function print_comments($map_id)
   $cdn_buttons = '';
   if ($cos_url) {
       if (check_login()) {
-          $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">国内直链下载</button></p>\n";
+          $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">国内CDN直链下载</button></p>\n";
       } else {
-          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 国内直链下载</a></p>\n";
+          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 国内CDN直链下载</a></p>\n";
       }
   }
   $safe_dl = htmlspecialchars($downlink, ENT_QUOTES, 'UTF-8');
-  $cdn_buttons .= "<p><a class=\"btn btn-success\" href=\"{$safe_dl}\" target=\"_blank\">SteamCDN（直链下载）</a></p>";
+  $cdn_buttons .= "<p><a class=\"btn btn-success\" href=\"{$safe_dl}\" target=\"_blank\">SteamCDN直链下载</a></p>";
 
   echo <<<HTML
     <div class="row">
@@ -230,8 +230,8 @@ function print_comments($map_id)
             <h1>$title</h1>   
             <p>订阅数: $subscriptions</p>
             <p>大小: $size</p>
-            <p><a class="btn btn-success" href="$link" target="_blank">跳转到steam页面</a></p>
-            <p><a class="btn btn-success" href="$steamlink">在steam客户端中查看</a></p>
+            <p><a class="btn btn-success" href="$link" target="_blank">在浏览器订阅</a></p>
+            <p><a class="btn btn-success" href="$steamlink">在Steam客户端订阅</a></p>
             $cdn_buttons
         </div>
         <div class="col align-self-center">
