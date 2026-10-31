@@ -321,9 +321,12 @@ function uninstall_map(int $id): array
     if (!$result['success']) return array_error($result['message']);
 
     $file_path = MAP_DIR . $disk_safe . '.vpk';
-    if (!file_exists($file_path)) return array_success("$disk_safe 删除成功。");
-    if (!is_writable($file_path) || !is_writable(MAP_DIR)) return array_error("没有删除权限，请检查uninstall_map");
-    unlink($file_path);
+    // 同时清理未完成的分片（.part）及其来源标记，避免卸载后 daemon 又把它拼回正式文件
+    foreach ([$file_path, $file_path . '.part', $file_path . '.part.meta'] as $target) {
+        if (!file_exists($target)) continue;
+        if (!is_writable($target) || !is_writable(MAP_DIR)) return array_error("没有删除权限，请检查uninstall_map");
+        if (!unlink($target)) return array_error("删除失败: $target");
+    }
     return array_success("$disk_safe 删除成功。");
 }
 

@@ -218,7 +218,7 @@ function print_comments($map_id)
       if (check_login()) {
           $cdn_buttons .= "<p><button id=\"cos-dl\" class=\"btn btn-primary\" data-map-id=\"{$id}\">国内CDN直链下载</button></p>\n";
       } else {
-          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">登录后可用 国内CDN直链下载</a></p>\n";
+          $cdn_buttons .= "<p><a class=\"btn btn-outline-secondary\" href=\"/api/login.php?return_url=/map_info.php?id={$id}\">国内CDN直链下载(需要登录)</a></p>\n";
       }
   }
   $safe_dl = htmlspecialchars($downlink, ENT_QUOTES, 'UTF-8');
@@ -230,8 +230,8 @@ function print_comments($map_id)
             <h1>$title</h1>   
             <p>订阅数: $subscriptions</p>
             <p>大小: $size</p>
-            <p><a class="btn btn-success" href="$link" target="_blank">在浏览器订阅</a></p>
-            <p><a class="btn btn-success" href="$steamlink">在Steam客户端订阅</a></p>
+            <p><a class="btn btn-success" href="$link" target="_blank">steam订阅链接</a></p>
+            <p><a class="btn btn-success" href="$steamlink">一键打开steam客户端订阅</a></p>
             $cdn_buttons
         </div>
         <div class="col align-self-center">

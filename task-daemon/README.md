@@ -22,7 +22,7 @@ flowchart TD
 
 `process_next_task()` → `fetch_next_task()` 从 `tasks` 表抢占式取任务（download > upload）→ 按类型分发到 `download_with_progress()` 或 `process_upload_task()`。
 
-**断点续传**：中断后文件保留，下次重试通过 `CURLOPT_RESUME_FROM` 续传。服务器不支持 Range（返回 200 而非 206）时自动删除从头开始。
+**断点续传**：下载写入 `{dst}.part`，成功后 `rename` 覆盖正式 vpk；中断后从 `.part` 续传，来源 URL 记录在 `.part.meta`，换版本时自动丢弃旧分片。服务器不支持 Range（返回 200 而非 206）或返回 416 时，丢弃 `.part` 从头下载。
 
 **回调**：
 - 成功 → `downlaod_success_callback()`：更新 tasks 状态为 `success`、maps 为 `active`、通知用户

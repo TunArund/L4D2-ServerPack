@@ -113,6 +113,8 @@ services:
     volumes:
       - ./web/src:/var/www/html
       - ./web/data/logs:/var/www/html/logs
+      # uninstall_map / 更新前清理需要直接操作 MAP_DIR（与 task-daemon 共享）
+      - ./l4d2/data/coop/addons:/var/www/addons
     depends_on:
       mysql:
         condition: service_healthy
